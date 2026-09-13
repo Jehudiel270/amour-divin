@@ -1,0 +1,59 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── Palette Amour Divin (AD), reprise fidèle du design Figma Make ───────── */
+@theme {
+  --color-midnight: #1a2744;
+  --color-midnight-light: #253460;
+  --color-lavender: #9b8ec4;
+  --color-lavender-soft: #c5bce0;
+  --color-lavender-light: #ede9f7;
+  --color-beige: #f5efe6;
+  --color-beige-dark: #e8dfd2;
+  --color-cream: #fafaf7;
+  --color-gold: #c9a04e;
+  --color-gold-light: #e8c98a;
+  --color-slate: #64748b;
+  --color-lavender-pale: var(--color-lavender-light);
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  /* Alias shadcn/ui, mappés sur la palette AD */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-midnight);
+  --color-primary: var(--color-midnight);
+  --color-primary-foreground: var(--color-cream);
+  --color-secondary: var(--color-lavender-light);
+  --color-secondary-foreground: var(--color-midnight);
+  --color-muted: var(--color-beige);
+  --color-muted-foreground: #64748b;
+  --color-accent: var(--color-gold);
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-border: var(--color-beige-dark);
+  --color-input: var(--color-beige-dark);
+  --color-ring: var(--color-lavender);
+  --radius: 0.75rem;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: rgba(155, 142, 196, 0.3) transparent;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: var(--color-midnight);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
