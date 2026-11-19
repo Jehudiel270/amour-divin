@@ -61,6 +61,10 @@ export const profilePreferences = pgTable("profile_preferences", {
   minAge: integer("min_age").notNull().default(18),
   maxAge: integer("max_age").notNull().default(70),
   maxDistanceKm: integer("max_distance_km").notNull().default(100),
+  notifyMatches: boolean("notify_matches").notNull().default(true),
+  notifyMessages: boolean("notify_messages").notNull().default(true),
+  notifyRequests: boolean("notify_requests").notNull().default(true),
+  notifyMarketing: boolean("notify_marketing").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   check("profile_preferences_age_range_check", sql`${table.minAge} >= 18 AND ${table.maxAge} >= ${table.minAge}`),

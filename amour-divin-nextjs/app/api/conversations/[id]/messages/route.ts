@@ -2,9 +2,10 @@ import { and, desc, eq, isNull, ne, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { blocks, conversationMembers, conversations, messages, notifications, profiles } from "@/db/schema";
+import { blocks, conversationMembers, conversations, messages, profiles } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/auth/session";
 import { getDatabase } from "@/lib/db";
+import { createInAppNotification } from "@/lib/notifications/create";
 
 const messageInput = z.object({ content: z.string().trim().min(1).max(4000) });
 
@@ -79,11 +80,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       content: parsed.data.content,
     }).returning();
     await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, id));
-    await db.insert(notifications).values({
-      userId: otherUserId,
-      kind: "message",
-      payload: { text: "Vous avez reçu un nouveau message." },
-    });
+    await createInAppNotification(otherUserId, "message", "Vous avez reçu un nouveau message.");
 
     return NextResponse.json({ message }, { status: 201 });
   } catch {

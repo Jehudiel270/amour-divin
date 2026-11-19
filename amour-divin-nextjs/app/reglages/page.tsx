@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { User, Shield, Lock, Bell, CreditCard, HelpCircle, LogOut, Check } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 
 import { authClient } from "@/lib/auth/client";
 import { translateAuthError } from "@/lib/auth/messages";
@@ -18,29 +17,50 @@ const SECTIONS = [
   { id: "help", label: "Aide", icon: <HelpCircle size={18} /> },
 ];
 
+type NotificationPreferences = { matches: boolean; messages: boolean; requests: boolean; marketing: boolean };
+type AccountSettings = {
+  firstName: string;
+  city: string;
+  email: string;
+  isVisible: boolean;
+  notifications: NotificationPreferences;
+};
+
 export default function Settings() {
   const router = useRouter();
   const [active, setActive] = useState("profile");
-  const [notifs, setNotifs] = useState({ matches: true, messages: true, requests: true, marketing: false });
-  const [visible, setVisible] = useState(true);
+  const [accountSettings, setAccountSettings] = useState<AccountSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
   const [saved, setSaved] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const [activePlan, setActivePlan] = useState<{ planCode: string; endsAt: string | null } | null>(null);
   const [plans, setPlans] = useState<Array<{ code: string; name: string; description: string; amountXof: number; durationDays: number; features: string[] }>>([]);
-  const [totpPassword, setTotpPassword] = useState("");
-  const [totpCode, setTotpCode] = useState("");
-  const [totpUri, setTotpUri] = useState("");
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [totpLoading, setTotpLoading] = useState(false);
-  const [totpError, setTotpError] = useState("");
-  const [totpEnabled, setTotpEnabled] = useState(false);
   const [passwordCurrent, setPasswordCurrent] = useState("");
   const [passwordNew, setPasswordNew] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/settings")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Impossible de charger vos réglages.");
+        if (active) setAccountSettings(result);
+      })
+      .catch((loadError) => {
+        if (active) setSettingsError(loadError instanceof Error ? loadError.message : "Impossible de charger vos réglages.");
+      })
+      .finally(() => {
+        if (active) setSettingsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -61,66 +81,38 @@ export default function Settings() {
     };
   }, []);
 
-  const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const save = async () => {
+    if (!accountSettings) return;
+    setSettingsSaving(true);
+    setSettingsError("");
+    setSaved(false);
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firstName: accountSettings.firstName,
+          city: accountSettings.city,
+          isVisible: accountSettings.isVisible,
+          notifications: accountSettings.notifications,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Impossible d’enregistrer vos réglages.");
+      setAccountSettings((current) => current ? { ...current, ...result.profile, notifications: result.notifications } : current);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (saveError) {
+      setSettingsError(saveError instanceof Error ? saveError.message : "Impossible d’enregistrer vos réglages.");
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const logout = async () => {
     await authClient.signOut();
     router.push("/");
     router.refresh();
-  };
-
-  type TwoFactorResult = {
-    error?: { message?: string };
-    data?: { totpURI?: string; totpUri?: string; backupCodes?: string[] };
-  };
-  const twoFactor = (authClient as unknown as {
-    twoFactor: {
-      enable: (args: { password: string; method: "totp"; issuer: string }) => Promise<TwoFactorResult>;
-      verifyTotp: (args: { code: string; trustDevice?: boolean }) => Promise<TwoFactorResult>;
-      disable: (args: { password: string }) => Promise<TwoFactorResult>;
-    };
-  }).twoFactor;
-
-  const enableTotp = async () => {
-    setTotpLoading(true);
-    setTotpError("");
-    try {
-      const rawResult: unknown = await twoFactor.enable({ password: totpPassword, method: "totp", issuer: process.env.NEXT_PUBLIC_CHURCH_NAME || "Église Amour Divin" });
-      const result = rawResult as {
-        error?: { message?: string };
-        data?: { totpURI?: string; totpUri?: string; backupCodes?: string[] };
-        totpURI?: string;
-        totpUri?: string;
-        backupCodes?: string[];
-      };
-      if (result.error) throw new Error(translateAuthError(result.error, "Activation TOTP impossible."));
-      const data = result.data ?? result;
-      setTotpUri(data.totpURI || data.totpUri || "");
-      setBackupCodes(Array.isArray(data.backupCodes) ? data.backupCodes : []);
-    } catch (setupError) {
-      setTotpError(setupError instanceof Error ? setupError.message : "Activation TOTP indisponible.");
-    } finally {
-      setTotpLoading(false);
-    }
-  };
-
-  const verifyTotp = async () => {
-    setTotpLoading(true);
-    setTotpError("");
-    try {
-      const result = await twoFactor.verifyTotp({ code: totpCode, trustDevice: true });
-      if (result.error) throw new Error(translateAuthError(result.error, "Code TOTP invalide."));
-      setTotpEnabled(true);
-      setTotpUri("");
-      setTotpCode("");
-    } catch (verificationError) {
-      setTotpError(verificationError instanceof Error ? verificationError.message : "Code TOTP invalide.");
-    } finally {
-      setTotpLoading(false);
-    }
   };
 
   const changePassword = async () => {
@@ -158,22 +150,6 @@ export default function Settings() {
     }
   };
 
-  const disableTotp = async () => {
-    setTotpLoading(true);
-    setTotpError("");
-    try {
-      const result = await twoFactor.disable({ password: totpPassword });
-      if (result.error) throw new Error(translateAuthError(result.error, "Désactivation TOTP impossible."));
-      setTotpEnabled(false);
-      setTotpUri("");
-      setBackupCodes([]);
-    } catch (disableError) {
-      setTotpError(disableError instanceof Error ? disableError.message : "Désactivation indisponible.");
-    } finally {
-      setTotpLoading(false);
-    }
-  };
-
   const startPremiumCheckout = async (planCode: string) => {
     setBillingLoading(true);
     setBillingError("");
@@ -200,6 +176,7 @@ export default function Settings() {
     <div className="min-h-screen bg-[var(--color-cream)] pt-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         <h1 className="font-display text-3xl font-bold text-[var(--color-midnight)] mb-8">Réglages</h1>
+        {settingsError && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{settingsError}</p>}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar */}
@@ -230,34 +207,24 @@ export default function Settings() {
               {active === "profile" && (
                 <div>
                   <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-6">Mon profil</h2>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div aria-hidden="true" className="w-20 h-20 rounded-2xl bg-[var(--color-lavender-light)]" />
-                    <div>
-                      <Link
-                        href="/creation-profil"
-                        className="inline-block px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                        style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
-                      >
-                        Modifier mon profil
-                      </Link>
+                  {settingsLoading ? <p className="py-8 text-sm text-slate-500">Chargement du compte…</p> : accountSettings && (
+                    <div className="space-y-4">
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Prénom</span>
+                        <input value={accountSettings.firstName} onChange={(event) => setAccountSettings((current) => current ? { ...current, firstName: event.target.value } : current)} className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)]" />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Ville</span>
+                        <input value={accountSettings.city} onChange={(event) => setAccountSettings((current) => current ? { ...current, city: event.target.value } : current)} className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)]" />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">Adresse e-mail</span>
+                        <input type="email" value={accountSettings.email} readOnly aria-describedby="email-settings-note" className="w-full rounded-xl border border-[var(--color-beige-dark)] bg-slate-50 px-4 py-3 text-sm text-slate-500" />
+                        <span id="email-settings-note" className="mt-1 block text-xs text-slate-500">Pour modifier l’adresse e-mail, contactez l’équipe.</span>
+                      </label>
+                      <Link href="/creation-profil" className="inline-block rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: "var(--color-midnight)" }}>Compléter mon profil</Link>
                     </div>
-                  </div>
-                  <div className="space-y-4">
-                    {[
-                      { label: "Prénom", value: "Sarah" },
-                      { label: "Ville", value: "Paris" },
-                      { label: "Adresse e-mail", value: "sarah@example.com" },
-                    ].map((f) => (
-                      <div key={f.label}>
-                        <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">{f.label}</label>
-                        <input
-                          type="text"
-                          defaultValue={f.value}
-                          className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all"
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -283,28 +250,11 @@ export default function Settings() {
                     <div className="p-4 rounded-2xl space-y-4" style={{ background: "var(--color-lavender-light)" }}>
                       <div className="flex items-start gap-3">
                         <Shield size={18} className="text-[var(--color-lavender)] mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-slate-600">Authentification TOTP avec application authenticator. Les super administrateurs doivent l&apos;activer avant l&apos;accès complet.</p>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--color-midnight)]">Double authentification indisponible</p>
+                          <p className="mt-1 text-sm text-slate-600">Le client Neon Auth utilisé par cette application n’expose pas le module TOTP. Cette protection n’est donc pas active; ne considérez pas le compte comme protégé par une deuxième étape.</p>
+                        </div>
                       </div>
-                      {totpError && <p role="alert" className="text-sm text-red-700">{totpError}</p>}
-                      {totpEnabled ? (
-                        <div className="space-y-3">
-                          <p className="text-sm font-medium text-green-700">TOTP activé.</p>
-                          <input type="password" value={totpPassword} onChange={(event) => setTotpPassword(event.target.value)} placeholder="Mot de passe actuel" className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm" />
-                          <button onClick={() => void disableTotp()} disabled={totpLoading || !totpPassword} className="w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 disabled:opacity-50">Désactiver le TOTP</button>
-                        </div>
-                      ) : totpUri ? (
-                        <div className="space-y-4">
-                          <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG value={totpUri} size={180} /></div>
-                          {backupCodes.length > 0 && <div className="rounded-xl bg-white p-3"><p className="mb-2 text-xs font-semibold uppercase text-slate-500">Codes de secours</p><p className="break-all text-xs leading-relaxed text-slate-600">{backupCodes.join(" ")}</p></div>}
-                          <input type="text" inputMode="numeric" value={totpCode} onChange={(event) => setTotpCode(event.target.value)} placeholder="Code TOTP à 6 chiffres" className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm" />
-                          <button onClick={() => void verifyTotp()} disabled={totpLoading || totpCode.length < 6} className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--color-midnight)" }}>Vérifier et activer</button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <input type="password" value={totpPassword} onChange={(event) => setTotpPassword(event.target.value)} placeholder="Mot de passe actuel" className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm" />
-                          <button onClick={() => void enableTotp()} disabled={totpLoading || !totpPassword} className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--color-midnight)" }}>Configurer le TOTP</button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -314,19 +264,22 @@ export default function Settings() {
                 <div>
                   <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-6">Confidentialité</h2>
                   <div className="space-y-5">
-                    <label className="flex items-center justify-between p-4 rounded-2xl cursor-pointer" style={{ background: "var(--color-beige)" }}>
+                    <div className="flex items-center justify-between gap-4 rounded-2xl p-4" style={{ background: "var(--color-beige)" }}>
                       <div>
                         <p className="text-sm font-medium text-[var(--color-midnight)]">Rendre mon profil visible</p>
                         <p className="text-xs text-slate-500 mt-0.5">Votre profil apparaît dans les résultats de recherche des autres membres.</p>
                       </div>
                       <button
-                        onClick={() => setVisible(!visible)}
-                        className={`w-11 h-6 rounded-full relative transition-colors flex-shrink-0 ${visible ? "" : "bg-slate-300"}`}
-                        style={visible ? { background: "var(--color-lavender)" } : {}}
+                        type="button"
+                        role="switch"
+                        aria-checked={accountSettings?.isVisible ?? false}
+                        disabled={!accountSettings || settingsLoading}
+                        onClick={() => setAccountSettings((current) => current ? { ...current, isVisible: !current.isVisible } : current)}
+                        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${accountSettings?.isVisible ? "bg-[var(--color-lavender)]" : "bg-slate-300"}`}
                       >
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${visible ? "translate-x-6" : "translate-x-1"}`}></span>
+                        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${accountSettings?.isVisible ? "translate-x-6" : "translate-x-1"}`}></span>
                       </button>
-                    </label>
+                    </div>
                     <Link href="/confidentialite" className="inline-block text-sm text-[var(--color-lavender)] hover:text-[var(--color-midnight)] transition-colors">
                       Lire notre politique de confidentialité →
                     </Link>
@@ -343,19 +296,22 @@ export default function Settings() {
                         ["matches", "Nouveaux matchs"],
                         ["messages", "Nouveaux messages"],
                         ["requests", "Demandes de connexion"],
-                        ["marketing", "Actualités et offres AD"],
                       ] as const
                     ).map(([key, label]) => (
-                      <label key={key} className="flex items-center justify-between p-4 rounded-2xl cursor-pointer" style={{ background: "var(--color-beige)" }}>
+                      <div key={key} className="flex items-center justify-between rounded-2xl p-4" style={{ background: "var(--color-beige)" }}>
                         <span className="text-sm font-medium text-[var(--color-midnight)]">{label}</span>
                         <button
-                          onClick={() => setNotifs((p) => ({ ...p, [key]: !p[key] }))}
-                          className="w-11 h-6 rounded-full relative transition-colors flex-shrink-0"
-                          style={{ background: notifs[key] ? "var(--color-lavender)" : "#cbd5e1" }}
+                          type="button"
+                          role="switch"
+                          aria-label={label}
+                          aria-checked={accountSettings?.notifications[key] ?? false}
+                          disabled={!accountSettings || settingsLoading}
+                          onClick={() => setAccountSettings((current) => current ? { ...current, notifications: { ...current.notifications, [key]: !current.notifications[key] } } : current)}
+                          className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${accountSettings?.notifications[key] ? "bg-[var(--color-lavender)]" : "bg-slate-300"}`}
                         >
-                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${notifs[key] ? "translate-x-6" : "translate-x-1"}`}></span>
+                          <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${accountSettings?.notifications[key] ? "translate-x-6" : "translate-x-1"}`}></span>
                         </button>
-                      </label>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -415,11 +371,13 @@ export default function Settings() {
               {active !== "help" && active !== "subscription" && (
                 <div className="mt-8 pt-6 border-t border-[var(--color-beige-dark)] flex items-center gap-3">
                   <button
-                    onClick={save}
+                    type="button"
+                    onClick={() => void save()}
+                    disabled={settingsSaving || settingsLoading || !accountSettings}
                     className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
                     style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
                   >
-                    Enregistrer les modifications
+                    {settingsSaving ? "Enregistrement…" : "Enregistrer les modifications"}
                   </button>
                   {saved && (
                     <span className="text-sm text-green-600 flex items-center gap-1.5">

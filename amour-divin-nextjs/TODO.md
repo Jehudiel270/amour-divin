@@ -1,6 +1,6 @@
 # Amour Divin - plan de livraison
 
-> Plan de pilotage unique. Etat au 19 novembre 2026 : Next.js 16 compilé, migrations Neon appliquées, Cloudinary configuré, rôles super-admin/admin, tarifs Premium administrables, interface TOTP et parcours principaux intégrés. Les tests réels Neon Auth/TOTP, Cloudinary et FedaPay restent à exécuter.
+> Plan de pilotage unique. Etat au 19 novembre 2026 : Next.js 16 compilé, migrations Neon appliquées, Cloudinary configuré, rôles super-admin/admin, tarifs Premium administrables, réglages profil/visibilité/notifications persistés. TOTP n'est pas disponible avec le client Neon Auth installé; les tests réels Neon Auth, Cloudinary et FedaPay restent à exécuter.
 > `.env.local` contient les services deja configurés; restees vides dans `.env.example` pour le suivi Git. Brevo SMTP est testé localement et Brevo doit encore être relié aux liens Neon Auth. Les items **[CLES]** nécessitent des tests externes, le prix, les emails, les webhooks ou la mise en production.
 
 ## Objectif produit
@@ -105,7 +105,9 @@ Construire une plateforme de rencontres serieuses entre adultes chretiens avec c
 
 ## Vague 6 - conformite et qualite de service
 
-- [ ] Implémenter suppression réelle du compte, export, rectification et préférences persistantes de visibilité/notifications; connexion, session, reset mot de passe et interface TOTP existent.
+- [x] Persister le prénom, la ville, la visibilité du profil et les préférences des notifications de demandes, matchs et messages.
+- [ ] Implémenter suppression réelle du compte, export et rectification des données.
+- [ ] Ajouter une intégration d'authentification qui expose le plugin TOTP côté client et serveur, puis imposer la deuxième étape aux administrateurs.
 - [ ] Faire valider les conditions, politique donnees/cookies, sous-traitants, conservation, consentement explicite et obligations des pays servis.
 - [ ] Aligner FAQ/securite sur les pratiques reelles; definir canal de signalement et processus d'urgence realiste.
 - [ ] Ajouter emails transactionnels (confirmation, reset, alertes de securite, recus), DNS expediteur et tests de delivrabilite.

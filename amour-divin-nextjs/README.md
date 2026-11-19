@@ -41,7 +41,7 @@ Les prix sont stockés dans `subscription_plans` et modifiables depuis `/admin/t
 - Vérifier que `DATABASE_URL` pointe vers la base Neon ayant reçu les migrations. Si Vercel utilise une autre base, exécuter `npm run db:migrate` manuellement contre cette base avant ouverture.
 - Configurer aussi le fournisseur d'e-mails et le domaine de rappel dans Neon Auth. Les seules variables Brevo ne branchent pas Neon Auth à SMTP.
 
-Le preset Cloudinary `eglise_amour_divin_profiles_signed` est **signé**, limité aux formats JPEG/PNG/WebP, avec modération manuelle et dossier `eglise-amour-divin/profiles`. L'interface TOTP est intégrée; son activation effective doit être vérifiée dans le compte Neon Auth configuré.
+Le preset Cloudinary `eglise_amour_divin_profiles_signed` est **signé**, limité aux formats JPEG/PNG/WebP, avec modération manuelle et dossier `eglise-amour-divin/profiles`. Le client Neon Auth installé n'expose pas le plugin TOTP: la double authentification n'est pas active et ne doit pas être annoncée comme une protection disponible.
 ## Base de données
 
 Le schéma est dans `db/schema.ts`; les migrations générées et versionnées sont dans `drizzle/`.

@@ -2,9 +2,10 @@ import { and, eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { blocks, connectionRequests, conversationMembers, conversations, matches, notifications, profiles } from "@/db/schema";
+import { blocks, connectionRequests, conversationMembers, conversations, matches, profiles } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/auth/session";
 import { getDatabase } from "@/lib/db";
+import { createInAppNotification } from "@/lib/notifications/create";
 import { getPublicProfile } from "@/lib/profiles/public";
 
 const createSchema = z.object({
@@ -64,11 +65,7 @@ export async function POST(request: Request) {
     }).onConflictDoNothing().returning();
 
     if (!created) return NextResponse.json({ error: "Une demande est déjà en attente." }, { status: 409 });
-    await db.insert(notifications).values({
-      userId: target.userId,
-      kind: "request",
-      payload: { text: "Vous avez reçu une demande de connexion." },
-    });
+    await createInAppNotification(target.userId, "request", "Vous avez reçu une demande de connexion.");
     return NextResponse.json({ request: created }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Impossible d'envoyer la demande." }, { status: 503 });
@@ -113,11 +110,10 @@ export async function PATCH(request: Request) {
           ]).onConflictDoNothing();
         }
       }
-      await db.insert(notifications).values({
-        userId: updated.senderId,
-        kind: "match",
-        payload: { text: "Votre demande de connexion a été acceptée." },
-      });
+      await Promise.all([
+        createInAppNotification(updated.senderId, "match", "Votre demande de connexion a été acceptée."),
+        createInAppNotification(updated.recipientId, "match", "Vous avez créé une nouvelle connexion."),
+      ]);
     }
 
     return NextResponse.json({ request: updated });
