@@ -133,7 +133,7 @@ Les noms de `.env.example` sont un contrat de configuration, pas des identifiant
 - Neon Postgres : `DATABASE_URL`
 - Neon Managed Better Auth : `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `NEON_JWKS_URL`
 - Cloudinary : `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_PRESET`
-- FedaPay : `FEDAPAY_ENVIRONMENT`, `FEDAPAY_SECRET_KEY`, `FEDAPAY_LIVE_SECRET_KEY`, `FEDAPAY_PUBLIC_KEY`, `FEDAPAY_LIVE_PUBLIC_KEY`, `FEDAPAY_WEBHOOK_SECRET`
+- FedaPay : `FEDAPAY_ENVIRONMENT`, `FEDAPAY_SECRET_KEY`, `FEDAPAY_LIVE_SECRET_KEY` (si passage en live), `FEDAPAY_WEBHOOK_SECRET`
 - Application : `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_CHURCH_NAME`, `SUPER_ADMIN_EMAIL`
 
 Ne pas basculer FedaPay en live ni lancer des paiements réels avant validation des prix depuis `/admin/tarifs`, du webhook sandbox/live, du domaine, du KYC/KYB et des CGV. Les migrations SQL sont déjà appliquées à Neon.

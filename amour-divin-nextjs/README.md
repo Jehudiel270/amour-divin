@@ -8,7 +8,7 @@ Plateforme de rencontres sérieuses pour les membres de l'église Amour Divin. L
 - Neon Postgres avec Drizzle ORM et migrations SQL
 - Neon Managed Better Auth pour les comptes et sessions
 - Cloudinary pour les photos de profil
-- FedaPay REST API pour Premium XOF (paiement ponctuel de 30 jours)
+- FedaPay REST API pour Premium XOF (paiement ponctuel selon le plan choisi)
 
 ## Démarrage local
 
@@ -25,11 +25,21 @@ Le site s'ouvre sur `http://localhost:3000`. Sans identifiants, les pages publiq
 
 - Neon : `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `NEON_JWKS_URL`
 - Cloudinary : `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_PRESET`
-- FedaPay : `FEDAPAY_ENVIRONMENT`, `FEDAPAY_SECRET_KEY`, `FEDAPAY_LIVE_SECRET_KEY`, `FEDAPAY_PUBLIC_KEY`, `FEDAPAY_LIVE_PUBLIC_KEY`, `FEDAPAY_WEBHOOK_SECRET`, `PREMIUM_30D_PRICE_XOF`
+- FedaPay sandbox : `FEDAPAY_ENVIRONMENT=sandbox`, `FEDAPAY_SECRET_KEY`, `FEDAPAY_WEBHOOK_SECRET`
+- FedaPay live uniquement après validation : `FEDAPAY_ENVIRONMENT=live`, `FEDAPAY_LIVE_SECRET_KEY`, secret du webhook live
 - Identité : `NEXT_PUBLIC_CHURCH_NAME`, `SUPER_ADMIN_EMAIL`, `NEXT_PUBLIC_APP_URL`
-- Configuration produit : `PREMIUM_30D_PRICE_XOF`, `NEXT_PUBLIC_APP_URL`
 
-Neon Managed Better Auth doit être activé dans la console Neon. Brevo SMTP est configuré localement dans `.env.local` pour l'envoi applicatif via `npm run mail:test`; le fournisseur d'e-mails utilisé par les liens de vérification/réinitialisation Neon doit être configuré séparément dans Neon Auth.
+Les prix sont stockés dans `subscription_plans` et modifiables depuis `/admin/tarifs`; aucune variable de prix Vercel n'est requise. Neon Managed Better Auth doit être activé dans la console Neon et le domaine Vercel doit être autorisé pour les URL de rappel. Brevo SMTP ne sert actuellement qu'au script de diagnostic `npm run mail:test`; ajouter ses variables à Vercel ne configure pas les e-mails de vérification/réinitialisation Neon. Le fournisseur d'e-mails doit être configuré dans Neon Auth.
+
+### Déploiement Vercel
+
+- Définir **Root Directory** sur `amour-divin-nextjs` (le dépôt Git contient l'application dans ce sous-répertoire).
+- Utiliser `npm run build` comme commande de build; ne pas lancer les migrations au moment du build.
+- Ajouter à Vercel les variables Neon, Cloudinary et identité listées ci-dessus, avec des valeurs de production.
+- Garder `FEDAPAY_ENVIRONMENT=sandbox` et définir le secret webhook sandbox avant le test de paiement. Enregistrer l'URL webhook `https://<domaine-vercel>/api/webhooks/fedapay` dans FedaPay.
+- Définir `NEXT_PUBLIC_APP_URL` sur l'URL HTTPS exacte de production; elle est utilisée pour le retour de paiement.
+- Vérifier que `DATABASE_URL` pointe vers la base Neon ayant reçu les migrations. Si Vercel utilise une autre base, exécuter `npm run db:migrate` manuellement contre cette base avant ouverture.
+- Configurer aussi le fournisseur d'e-mails et le domaine de rappel dans Neon Auth. Les seules variables Brevo ne branchent pas Neon Auth à SMTP.
 
 Le preset Cloudinary `eglise_amour_divin_profiles_signed` est **signé**, limité aux formats JPEG/PNG/WebP, avec modération manuelle et dossier `eglise-amour-divin/profiles`. L'interface TOTP est intégrée; son activation effective doit être vérifiée dans le compte Neon Auth configuré.
 ## Base de données
@@ -49,9 +59,9 @@ Ne publiez jamais de profil réel avant d'avoir choisi votre pays de lancement, 
 
 ## FedaPay
 
-Le checkout et le webhook sont en mode configuré par `FEDAPAY_ENVIRONMENT`; gardez `sandbox` jusqu'aux tests de bout en bout. Le prix Premium vient de `PREMIUM_30D_PRICE_XOF`. L'accès est accordé uniquement après vérification serveur du statut de transaction. Le plan actuel est un paiement ponctuel de 30 jours, sans renouvellement automatique.
+Le checkout et le webhook sont configurés par `FEDAPAY_ENVIRONMENT`; gardez `sandbox` jusqu'aux tests de bout en bout. Les prix et durées proviennent des plans enregistrés en base (`subscription_plans`). L'accès est accordé uniquement après vérification serveur du statut de transaction. Les abonnements sont des paiements ponctuels, sans renouvellement automatique.
 
-Dans FedaPay, configurez le webhook sur `/api/webhooks/fedapay` et copiez son secret dans `FEDAPAY_WEBHOOK_SECRET`. L'intégration utilise les clés live uniquement si `FEDAPAY_ENVIRONMENT=live`; gardez `sandbox` pendant les tests. Définissez `PREMIUM_30D_PRICE_XOF` avant d'activer l'offre.
+Dans FedaPay, configurez le webhook sur `/api/webhooks/fedapay` et copiez son secret correspondant à l'environnement dans `FEDAPAY_WEBHOOK_SECRET`. L'intégration utilise la clé live uniquement si `FEDAPAY_ENVIRONMENT=live`; gardez `sandbox` pendant les tests. Gérez les offres depuis `/admin/tarifs`.
 
 ## Contrôles
 
