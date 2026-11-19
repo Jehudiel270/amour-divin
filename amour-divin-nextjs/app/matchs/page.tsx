@@ -1,96 +1,75 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Eye, Heart } from "lucide-react";
+import { Eye, Heart, MessageCircle } from "lucide-react";
 
-import { PROFILES, unsplashUrl } from "@/data/profiles";
+interface MatchConversation {
+  id: string;
+  profile: { userId: string; firstName: string; age: number; city: string; profession: string; photo: string };
+  lastMessage: { createdAt: string } | null;
+}
 
-const MATCHES = PROFILES.slice(0, 5).map((p, i) => ({ ...p, matchedAt: ["Aujourd'hui", "Hier", "Il y a 3 jours", "Il y a 5 jours", "Il y a 1 semaine"][i] }));
-
+import Image from "next/image";
 export default function Matches() {
+  const [matches, setMatches] = useState<MatchConversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/conversations")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Matchs indisponibles.");
+        if (active) setMatches(result.conversations);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Matchs indisponibles.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[var(--color-cream)] pt-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--color-lavender-light)", color: "var(--color-lavender)" }}>
-            <Heart size={20} />
-          </div>
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-lavender-light)] text-[var(--color-lavender)]"><Heart size={20} /></div>
           <div>
             <h1 className="font-display text-3xl font-bold text-[var(--color-midnight)]">Mes matchs</h1>
-            <p className="text-slate-500 text-sm">
-              {MATCHES.length} connexion{MATCHES.length > 1 ? "s" : ""} établie{MATCHES.length > 1 ? "s" : ""}
-            </p>
+            <p className="text-sm text-slate-500">{matches.length} connexion{matches.length > 1 ? "s" : ""} établie{matches.length > 1 ? "s" : ""}</p>
           </div>
         </div>
 
-        {MATCHES.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="text-5xl mb-4">💝</div>
-            <h3 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-2">Pas encore de match</h3>
-            <p className="text-slate-500 text-sm mb-6">Envoyez des demandes à des profils qui vous touchent !</p>
-            <Link
-              href="/decouvrir"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-              style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
-            >
-              Découvrir des profils
-            </Link>
+        {error && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {loading ? <p className="py-16 text-center text-sm text-slate-400">Chargement...</p> : matches.length === 0 ? (
+          <div className="py-24 text-center">
+            <h2 className="mb-2 font-display text-xl font-bold text-[var(--color-midnight)]">Pas encore de match</h2>
+            <p className="mb-6 text-sm text-slate-500">Une conversation apparaîtra ici après l&apos;acceptation mutuelle d&apos;une demande.</p>
+            <Link href="/decouvrir" className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white" style={{ background: "var(--color-midnight)" }}>Découvrir des profils</Link>
           </div>
         ) : (
-          <>
-            {/* New match highlight */}
-            <div className="mb-8 p-1 rounded-3xl" style={{ background: "linear-gradient(135deg, var(--color-lavender) 0%, var(--color-gold) 100%)" }}>
-              <div className="bg-white rounded-3xl p-6 flex items-center gap-5">
-                <div className="relative">
-                  <img src={unsplashUrl(MATCHES[0].photo, 80, 80)} alt={MATCHES[0].firstName} className="w-16 h-16 rounded-2xl object-cover" />
-                  <span className="absolute -top-1 -right-1 text-lg">💝</span>
-                </div>
+          <div className="space-y-4">
+            {matches.map((match) => (
+              <div key={match.id} className="flex flex-col items-start gap-5 rounded-3xl bg-white p-6 shadow-sm sm:flex-row sm:items-center">
+                <Image src={match.profile.photo} alt={`Photo de ${match.profile.firstName}`} width={64} height={64} sizes="64px" className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
                 <div className="flex-1">
-                  <span className="text-xs font-bold text-[var(--color-lavender)] uppercase tracking-widest">Nouveau match !</span>
-                  <h3 className="font-display font-bold text-xl text-[var(--color-midnight)]">
-                    {MATCHES[0].firstName}, {MATCHES[0].age}
-                  </h3>
-                  <p className="text-slate-400 text-sm">
-                    {MATCHES[0].city} · Matché {MATCHES[0].matchedAt}
-                  </p>
+                  <h2 className="font-display text-lg font-bold text-[var(--color-midnight)]">{match.profile.firstName}, {match.profile.age}</h2>
+                  <p className="text-sm text-slate-500">{match.profile.city} · {match.profile.profession}</p>
+                  <p className="mt-1 text-xs text-slate-400">{match.lastMessage ? `Dernier échange ${new Date(match.lastMessage.createdAt).toLocaleDateString("fr-FR")}` : "Conversation prête"}</p>
                 </div>
-                <Link
-                  href="/messages"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-                  style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
-                >
-                  <MessageCircle size={15} /> Message
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/messages?conversation=${match.id}`} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: "var(--color-midnight)" }}><MessageCircle size={14} /> Message</Link>
+                  <Link href={`/profil/${match.profile.userId}`} aria-label={`Voir le profil de ${match.profile.firstName}`} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-beige-dark)] text-slate-600"><Eye size={14} /></Link>
+                </div>
               </div>
-            </div>
-
-            <div className="space-y-4">
-              {MATCHES.slice(1).map((m) => (
-                <div key={m.id} className="bg-white rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:shadow-md transition-shadow">
-                  <img src={unsplashUrl(m.photo, 80, 80)} alt={m.firstName} className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="font-display font-bold text-lg text-[var(--color-midnight)]">
-                      {m.firstName}, {m.age}
-                    </h3>
-                    <p className="text-slate-400 text-sm">
-                      {m.city} · {m.profession}
-                    </p>
-                    <p className="text-xs text-slate-300 mt-1">Matché {m.matchedAt}</p>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Link
-                      href="/messages"
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-                      style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
-                    >
-                      <MessageCircle size={14} /> Message
-                    </Link>
-                    <Link href={`/profil/${m.id}`} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border border-[var(--color-beige-dark)] text-slate-600 hover:bg-[var(--color-beige)] transition-colors">
-                      <Eye size={14} /> Profil
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+            ))}
+          </div>
         )}
       </div>
     </div>

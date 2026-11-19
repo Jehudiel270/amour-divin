@@ -11,22 +11,22 @@ const CATEGORIES = [
     items: [
       { q: "AD est-il réservé aux chrétiens ?", a: "Oui, AD est conçu pour des jeunes adultes qui souhaitent fonder une relation sur des valeurs chrétiennes partagées, quelle que soit leur dénomination." },
       { q: "Quel est l'âge minimum pour s'inscrire ?", a: "AD est strictement réservé aux personnes de 18 ans et plus. Une confirmation d'âge est demandée à l'inscription." },
-      { q: "Dans quels pays AD est-il disponible ?", a: "AD est actuellement disponible en France, en Belgique et en Suisse francophone, avec une extension prévue vers d'autres pays." },
+      { q: "Dans quels pays AD est-il disponible ?", a: "Le pays de lancement sera annoncé avant l'ouverture publique." },
     ],
   },
   {
     title: "Compte & Profil",
     items: [
-      { q: "Comment fonctionne la vérification des profils ?", a: "Chaque profil est examiné par notre équipe de modération avant publication. Vous pouvez aussi vérifier votre identité pour obtenir le badge vérifié." },
+      { q: "Comment fonctionne la vérification des profils ?", a: "Les profils sont destinés à être examinés avant publication. Le processus doit être opérationnel avant l'ouverture publique." },
       { q: "Puis-je modifier mon profil après publication ?", a: "Oui, vous pouvez modifier vos photos, votre présentation et vos préférences à tout moment depuis les réglages." },
-      { q: "Comment supprimer mon compte ?", a: "Rendez-vous dans Réglages > Mon profil > Supprimer mon compte. Cette action est définitive." },
+      { q: "Comment supprimer mon compte ?", a: "La suppression autonome n'est pas encore disponible. Contactez l'équipe via la page Contact jusqu'à la mise en place de cette fonction." },
     ],
   },
   {
     title: "Rencontres & Sécurité",
     items: [
       { q: "Comment envoyer une demande de connexion ?", a: "Depuis un profil qui vous intéresse, cliquez sur \"Envoyer une demande\". Un message personnalisé augmente vos chances d'acceptation." },
-      { q: "Comment signaler un comportement inapproprié ?", a: "Chaque profil dispose d'un bouton \"Signaler\". Notre équipe traite tous les signalements sous 24h." },
+      { q: "Comment signaler un comportement inapproprié ?", a: "Utilisez les outils Signaler ou Contact. Aucun délai de traitement n'est garanti à ce stade." },
       { q: "Quelles précautions prendre pour une première rencontre ?", a: "Privilégiez un lieu public, informez un proche, et prenez le temps de bien connaître la personne au préalable." },
     ],
   },
@@ -35,7 +35,7 @@ const CATEGORIES = [
     items: [
       { q: "Est-ce gratuit ?", a: "L'inscription et la découverte de profils sont gratuites. Certaines fonctionnalités avancées sont disponibles avec un abonnement Premium." },
       { q: "Que propose l'abonnement Premium ?", a: "Demandes illimitées, visibilité de qui a consulté votre profil, mise en avant et filtres de recherche avancés." },
-      { q: "Puis-je annuler mon abonnement à tout moment ?", a: "Oui, vous pouvez annuler à tout moment depuis Réglages > Abonnement, sans engagement." },
+      { q: "Puis-je annuler mon abonnement à tout moment ?", a: "Les conditions d'annulation et de remboursement seront présentées avant l'activation d'une offre payante." },
     ],
   },
 ];

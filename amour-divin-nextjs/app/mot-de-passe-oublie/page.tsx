@@ -3,18 +3,31 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Mail, ArrowRight, CheckCircle } from "lucide-react";
+import { authClient } from "@/lib/auth/client";
+import { translateAuthError } from "@/lib/auth/messages";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSent(true);
+    setError("");
+    try {
+      const result = await authClient.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}/reinitialiser-mot-de-passe`,
+      });
+      if (result.error) throw new Error(translateAuthError(result.error, "Demande de réinitialisation impossible."));
+      setSent(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Demande de réinitialisation indisponible.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,6 +68,7 @@ export default function ForgotPassword() {
               <p className="text-slate-500 text-sm mb-8 leading-relaxed">Pas de panique ! Entrez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.</p>
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Adresse e-mail</label>
                   <input

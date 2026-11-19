@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, User, Heart, Star, Search, Eye, Check, ArrowRight, ArrowLeft } from "lucide-react";
 
@@ -13,8 +13,9 @@ const VALUES_LIST = ["Fidélité", "Famille", "Honnêteté", "Service", "Prière
 interface ProfileDraft {
   photos: string[];
   firstName: string;
-  age: string;
+  birthDate: string;
   city: string;
+  countryCode: string;
   profession: string;
   church: string;
   values: string[];
@@ -25,14 +26,19 @@ interface ProfileDraft {
   maxDistance: number;
 }
 
+import Image from "next/image";
 export default function CreateProfile() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [uploadingPosition, setUploadingPosition] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [profile, setProfile] = useState<ProfileDraft>({
     photos: [],
-    firstName: "Sarah",
-    age: "25",
-    city: "Paris",
+    firstName: "",
+    birthDate: "",
+    city: "",
+    countryCode: "",
     profession: "",
     church: "",
     values: [],
@@ -43,12 +49,144 @@ export default function CreateProfile() {
     maxDistance: 50,
   });
 
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetch("/api/profile"), fetch("/api/profile/photos")])
+      .then(async ([profileResponse, photosResponse]) => {
+        const [profileData, photosData] = await Promise.all([profileResponse.json(), photosResponse.json()]);
+        if (!active) return;
+        const savedProfile = profileData.profile;
+        const preferences = profileData.preferences;
+        if (savedProfile) {
+          setProfile((current) => ({
+            ...current,
+            firstName: savedProfile.firstName ?? "",
+            birthDate: savedProfile.birthDate ?? "",
+            city: savedProfile.city ?? "",
+            countryCode: savedProfile.countryCode ?? "",
+            profession: savedProfile.profession ?? "",
+            church: savedProfile.church ?? "",
+            values: savedProfile.faithValues ?? [],
+            bio: savedProfile.bio ?? "",
+            interests: savedProfile.interests ?? [],
+            lookingFor: savedProfile.lookingFor ?? "",
+            ageRange: [preferences?.minAge ?? 18, preferences?.maxAge ?? 70],
+            maxDistance: preferences?.maxDistanceKm ?? 100,
+          }));
+        }
+        if (Array.isArray(photosData.photos)) {
+          setProfile((current) => {
+            const photos = [...current.photos];
+            for (const photo of photosData.photos) photos[photo.position] = photo.secureUrl;
+            return { ...current, photos };
+          });
+        }
+      })
+      .catch(() => {
+        if (active) setError("Impossible de charger votre brouillon de profil.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const progress = (step / (STEPS.length - 1)) * 100;
 
   const toggleItem = (arr: string[], item: string): string[] => (arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]);
 
   const next = () => step < STEPS.length - 1 && setStep((s) => s + 1);
   const prev = () => step > 0 && setStep((s) => s - 1);
+
+  const uploadPhoto = async (file: File, position: number) => {
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      setError("Choisissez une image de 5 Mo maximum.");
+      return;
+    }
+    setUploadingPosition(position);
+    setError("");
+    try {
+      const signatureResponse = await fetch("/api/profile/photos/signature", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ position }),
+      });
+      const signatureData = await signatureResponse.json();
+      if (!signatureResponse.ok) throw new Error(signatureData.error || "Signature d'upload indisponible.");
+
+      const uploadData = new FormData();
+      uploadData.set("file", file);
+      uploadData.set("api_key", signatureData.apiKey);
+      uploadData.set("timestamp", String(signatureData.timestamp));
+      uploadData.set("folder", signatureData.folder);
+      uploadData.set("public_id", signatureData.publicId);
+      uploadData.set("upload_preset", signatureData.uploadPreset);
+      uploadData.set("overwrite", "false");
+      uploadData.set("signature", signatureData.signature);
+
+      const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`, {
+        method: "POST",
+        body: uploadData,
+      });
+      const cloudinaryData = await cloudinaryResponse.json();
+      if (!cloudinaryResponse.ok) throw new Error("L'envoi de la photo a échoué.");
+
+      const saveResponse = await fetch("/api/profile/photos", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          publicId: cloudinaryData.public_id,
+          version: cloudinaryData.version,
+          signature: cloudinaryData.signature,
+          position,
+        }),
+      });
+      const savedData = await saveResponse.json();
+      if (!saveResponse.ok) throw new Error(savedData.error || "Impossible d'enregistrer la photo.");
+      setProfile((current) => {
+        const photos = [...current.photos];
+        photos[position] = savedData.photo.secureUrl;
+        return { ...current, photos };
+      });
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload indisponible.");
+    } finally {
+      setUploadingPosition(null);
+    }
+  };
+
+  const saveProfile = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firstName: profile.firstName,
+          birthDate: profile.birthDate,
+          city: profile.city,
+          countryCode: profile.countryCode,
+          profession: profile.profession,
+          church: profile.church,
+          bio: profile.bio,
+          lookingFor: profile.lookingFor,
+          faithValues: profile.values,
+          interests: profile.interests,
+          minAge: profile.ageRange[0],
+          maxAge: profile.ageRange[1],
+          maxDistanceKm: profile.maxDistance,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Impossible d'enregistrer votre profil.");
+      router.push("/decouvrir");
+      router.refresh();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Enregistrement indisponible.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-beige)] pt-16">
@@ -74,6 +212,7 @@ export default function CreateProfile() {
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-sm">
+          {error && <p role="alert" className="mb-6 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {/* Step 0: Photos */}
           {step === 0 && (
             <div>
@@ -86,19 +225,30 @@ export default function CreateProfile() {
               <p className="text-slate-500 text-sm mb-6">Ajoutez jusqu&apos;à 6 photos. La première sera votre photo principale.</p>
               <div className="grid grid-cols-3 gap-3">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <div
+                  <label
                     key={i}
-                    className={`aspect-square rounded-2xl flex items-center justify-center cursor-pointer transition-all hover:opacity-80 ${
-                      i === 0 ? "border-2 border-dashed border-[var(--color-lavender)]" : "border-2 border-dashed border-[var(--color-beige-dark)]"
-                    }`}
-                    style={{ background: i < 2 ? "var(--color-lavender-light)" : "var(--color-beige)" }}
+                    className="relative aspect-square cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-[var(--color-beige-dark)] bg-[var(--color-beige)] transition-opacity hover:opacity-80"
                   >
-                    {i < 2 ? (
-                      <img src={unsplashUrl(i === 0 ? "photo-1531746020798-e6953c6e8e04" : "photo-1488426862026-3ee34a7d66df", 200, 200)} className="w-full h-full object-cover rounded-2xl" alt="" />
+                    {profile.photos[i] ? (
+                      <Image src={profile.photos[i]} fill sizes="(max-width: 640px) 33vw, 160px" className="rounded-2xl object-cover" alt={`Photo du profil ${i + 1}`} />
                     ) : (
-                      <Camera size={22} className="text-slate-300" />
+                      <span className="flex h-full w-full items-center justify-center">
+                        <Camera size={22} className="text-slate-300" />
+                      </span>
                     )}
-                  </div>
+                    {uploadingPosition === i && <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm text-white">Envoi...</span>}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={uploadingPosition !== null}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadPhoto(file, i);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
                 ))}
               </div>
               <p className="text-xs text-slate-400 mt-4">Photos sobres et naturelles recommandées. Visage visible sur la photo principale.</p>
@@ -118,7 +268,7 @@ export default function CreateProfile() {
                 {(
                   [
                     { label: "Prénom", key: "firstName", type: "text", placeholder: "Votre prénom" },
-                    { label: "Âge", key: "age", type: "number", placeholder: "25" },
+                    { label: "Date de naissance", key: "birthDate", type: "date", placeholder: "" },
                     { label: "Ville", key: "city", type: "text", placeholder: "Paris, Lyon..." },
                     { label: "Profession ou études", key: "profession", type: "text", placeholder: "Infirmière, Étudiant en droit..." },
                   ] as const
@@ -288,10 +438,10 @@ export default function CreateProfile() {
               </div>
               <div className="rounded-2xl overflow-hidden border border-[var(--color-beige-dark)]">
                 <div className="relative aspect-video bg-[var(--color-beige)]">
-                  <img src={unsplashUrl("photo-1531746020798-e6953c6e8e04", 600, 400)} alt="Photo de profil" className="w-full h-full object-cover" />
+                  <Image src={unsplashUrl("photo-1531746020798-e6953c6e8e04", 600, 400)} alt="Exemple de photo de profil" fill sizes="(max-width: 1024px) 100vw, 66vw" className="object-cover" />
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-6">
                     <p className="text-white font-display font-semibold text-2xl">
-                      {profile.firstName || "Sarah"}, {profile.age || "25"}
+                      {profile.firstName || "Votre prénom"}{profile.birthDate ? `, ${new Date().getFullYear() - new Date(profile.birthDate).getFullYear()}` : ""}
                     </p>
                     <p className="text-white/80">
                       {profile.city || "Paris"} · {profile.profession || "Profession"}
@@ -333,11 +483,12 @@ export default function CreateProfile() {
               </button>
             ) : (
               <button
-                onClick={() => router.push("/decouvrir")}
+                onClick={saveProfile}
+                disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
                 style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
               >
-                Publier mon profil <Check size={16} />
+                {saving ? "Enregistrement..." : "Envoyer mon profil en vérification"} <Check size={16} />
               </button>
             )}
           </div>

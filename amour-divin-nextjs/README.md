@@ -1,132 +1,65 @@
-# Amour Divin (AD) — Rencontres sérieuses entre jeunes chrétiens
+# Amour Divin
 
-Projet Next.js (App Router) généré à partir de l'export Figma Make
-« Application de rencontres AD.zip », porté fidèlement en TypeScript.
+Plateforme de rencontres sérieuses pour les membres de l'église Amour Divin. Le dépôt contient une interface Next.js et les parcours métier connectés à Neon, Cloudinary, Neon Auth et FedaPay.
 
-> ⚠️ Plateforme réservée aux personnes de **18 ans et plus**. Toutes les données
-> (profils, messages, utilisateurs admin, signalements) sont **fictives**. Aucune
-> base de données ni authentification réelle n'est branchée (voir `lib/auth-context.tsx`).
+## Stack
 
-## Stack technique
+- Next.js 16 App Router, React 19, TypeScript
+- Neon Postgres avec Drizzle ORM et migrations SQL
+- Neon Managed Better Auth pour les comptes et sessions
+- Cloudinary pour les photos de profil
+- FedaPay REST API pour Premium XOF (paiement ponctuel de 30 jours)
 
-- **Next.js 15** (App Router, React 19)
-- **TypeScript**
-- **Tailwind CSS v4** (thème via `@theme` dans `app/globals.css`)
-- **shadcn/ui** : primitives disponibles dans `components/ui/` (button, input, card,
-  dialog, tabs, select, switch, label, separator, skeleton, badge, textarea).
-  Les pages elles-mêmes reprennent le style Tailwind + variables CSS (`var(--color-x)`)
-  de l'export Figma Make à l'identique, pour respecter fidèlement le design fourni.
-- **lucide-react** pour les icônes
-
-## Ce qui a changé par rapport à l'export Figma Make
-
-L'export original utilisait **react-router-dom** (SPA Vite). Conversion effectuée :
-
-| Original (react-router-dom) | Next.js App Router |
-|---|---|
-| `pages/*.tsx` + `<Routes>` dans `App.tsx` | un dossier par route sous `app/`, avec `page.tsx` |
-| `<Link to="...">` | `<Link href="...">` (`next/link`) |
-| `useNavigate()` / `navigate(x)` | `useRouter()` / `router.push(x)` (`next/navigation`) |
-| `useParams()` | `useParams()` (`next/navigation`, mêmes noms) |
-| `useLocation()` | `usePathname()` (`next/navigation`) |
-| `useState(isLoggedIn)` dans `App.tsx` | `AuthProvider` / `useAuth()` (`lib/auth-context.tsx`) |
-| Un seul `<Navbar isLoggedIn .../>` monté une fois | `<Navbar />` dans `app/layout.tsx`, lit le contexte |
-
-Le contenu, les textes, la palette de couleurs, les composants (Navbar, Footer,
-ProfileCard) et les 26 fichiers sources ont été repris **sans suppression ni
-simplification** — les 25 routes demandées sont toutes présentes (`Home` sert la
-route `/`).
-
-## Structure du projet
-
-```
-amour-divin-nextjs/
-├── app/
-│   ├── layout.tsx              # AuthProvider + Navbar globale
-│   ├── globals.css             # Thème Tailwind v4 (palette Amour Divin)
-│   ├── page.tsx                 # /
-│   ├── a-propos/                # /a-propos
-│   ├── comment-ca-marche/       # /comment-ca-marche
-│   ├── securite/                # /securite
-│   ├── inscription/             # /inscription
-│   ├── connexion/                # /connexion
-│   ├── mot-de-passe-oublie/     # /mot-de-passe-oublie
-│   ├── creation-profil/         # /creation-profil (assistant 6 étapes)
-│   ├── decouvrir/               # /decouvrir
-│   ├── profil/[id]/             # /profil/[id] (route dynamique)
-│   ├── favoris/                 # /favoris
-│   ├── demandes/                # /demandes (onglets reçues/envoyées)
-│   ├── matchs/                  # /matchs
-│   ├── messages/                # /messages
-│   ├── notifications/           # /notifications
-│   ├── reglages/                # /reglages (6 sections)
-│   ├── signaler/                # /signaler
-│   ├── faq/                     # /faq
-│   ├── contact/                 # /contact
-│   ├── conditions/              # /conditions
-│   ├── confidentialite/         # /confidentialite
-│   └── admin/                   # back-office (layout latéral dédié)
-│       ├── page.tsx             # /admin
-│       ├── utilisateurs/        # /admin/utilisateurs
-│       ├── signalements/        # /admin/signalements
-│       └── verifications/       # /admin/verifications
-├── components/
-│   ├── ui/          # Primitives shadcn/ui disponibles
-│   ├── layout/       # admin-layout.tsx (layout latéral admin)
-│   └── shared/       # navbar.tsx, footer.tsx, profile-card.tsx
-├── data/              # Données fictives typées (profils, messages, notifications, admin)
-├── lib/               # utils.ts (cn) + auth-context.tsx (contexte isLoggedIn)
-├── types/index.ts     # Types TypeScript centraux
-└── ...configs (tsconfig, next.config, postcss, eslint, components.json)
-```
-
-## Routes couvertes (25/25)
-
-`/`, `/a-propos`, `/comment-ca-marche`, `/securite`, `/inscription`, `/connexion`,
-`/mot-de-passe-oublie`, `/creation-profil`, `/decouvrir`, `/profil/[id]`, `/favoris`,
-`/demandes`, `/matchs`, `/messages`, `/notifications`, `/reglages`, `/signaler`,
-`/faq`, `/contact`, `/conditions`, `/confidentialite`, `/admin`, `/admin/utilisateurs`,
-`/admin/signalements`, `/admin/verifications`.
-
-## Préparation base de données / authentification
-
-- `lib/auth-context.tsx` : contexte React (`isLoggedIn` / `setLoggedIn`) qui simule une
-  session. À remplacer par une vraie solution (Auth.js/NextAuth recommandé) connectée
-  à une base de données.
-- `data/*.ts` : à remplacer progressivement par des requêtes à la base de données ;
-  les types de `types/index.ts` peuvent rester inchangés.
-
-## Installation
+## Démarrage local
 
 ```bash
-# 1. Décompresser le zip puis se placer dans le dossier du projet
-cd amour-divin-nextjs
-
-# 2. Installer les dépendances
 npm install
-
-# 3. Lancer le serveur de développement
 npm run dev
 ```
 
-L'application est disponible sur **http://localhost:3000**.
+Le site s'ouvre sur `http://localhost:3000`. Sans identifiants, les pages publiques s'affichent; les parcours backend retournent une erreur de configuration explicite.
 
-### Autres commandes utiles
+## Configuration
+
+- `.env.local` existe localement avec les valeurs configurées; `.env.example` décrit les noms de variables sans secret pour les déploiements. Ne jamais commit `.env.local` ni mettre de clé secrète dans une variable `NEXT_PUBLIC_*`.
+
+- Neon : `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `NEON_JWKS_URL`
+- Cloudinary : `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_PRESET`
+- FedaPay : `FEDAPAY_ENVIRONMENT`, `FEDAPAY_SECRET_KEY`, `FEDAPAY_LIVE_SECRET_KEY`, `FEDAPAY_PUBLIC_KEY`, `FEDAPAY_LIVE_PUBLIC_KEY`, `FEDAPAY_WEBHOOK_SECRET`, `PREMIUM_30D_PRICE_XOF`
+- Identité : `NEXT_PUBLIC_CHURCH_NAME`, `SUPER_ADMIN_EMAIL`, `NEXT_PUBLIC_APP_URL`
+- Configuration produit : `PREMIUM_30D_PRICE_XOF`, `NEXT_PUBLIC_APP_URL`
+
+Neon Managed Better Auth doit être activé dans la console Neon. Brevo SMTP est configuré localement dans `.env.local` pour l'envoi applicatif via `npm run mail:test`; le fournisseur d'e-mails utilisé par les liens de vérification/réinitialisation Neon doit être configuré séparément dans Neon Auth.
+
+Le preset Cloudinary `eglise_amour_divin_profiles_signed` est **signé**, limité aux formats JPEG/PNG/WebP, avec modération manuelle et dossier `eglise-amour-divin/profiles`. L'interface TOTP est intégrée; son activation effective doit être vérifiée dans le compte Neon Auth configuré.
+## Base de données
+
+Le schéma est dans `db/schema.ts`; les migrations générées et versionnées sont dans `drizzle/`.
 
 ```bash
-npm run build   # Build de production
-npm run start   # Démarrer le build de production
-npm run lint    # Vérifier le code avec ESLint
+npm run db:generate
+npm run db:migrate
 ```
 
-## Notes importantes
+`db:migrate` nécessite `DATABASE_URL`. Les migrations applicatives ont été appliquées au projet Neon configuré dans `.env.local`.
 
-- Aucune donnée personnelle réelle : tous les profils, messages, utilisateurs admin
-  et signalements sont fictifs (`data/*.ts`).
-- Les photos proviennent d'Unsplash (usage éditorial de démonstration).
-- Le service est explicitement réservé aux 18 ans et plus (page d'accueil, formulaire
-  d'inscription, pied de page).
-- Mon environnement de build n'a pas d'accès réseau (registre npm bloqué en sandbox),
-  donc `npm install` / `next build` n'ont pas pu être exécutés ici. Une revue statique
-  complète a été faite à la place (imports, TS, classes Tailwind, équilibre syntaxique).
-  Lancez `npm run build` en premier réflexe chez vous pour confirmer.
+Le premier super administrateur est identifié automatiquement par `SUPER_ADMIN_EMAIL=dossoucarrel@gmail.com`. Il peut depuis `/admin/equipe` nommer des admins ou super-admins et définir les permissions des admins.
+
+Ne publiez jamais de profil réel avant d'avoir choisi votre pays de lancement, finalisé les mentions légales et configuré la modération.
+
+## FedaPay
+
+Le checkout et le webhook sont en mode configuré par `FEDAPAY_ENVIRONMENT`; gardez `sandbox` jusqu'aux tests de bout en bout. Le prix Premium vient de `PREMIUM_30D_PRICE_XOF`. L'accès est accordé uniquement après vérification serveur du statut de transaction. Le plan actuel est un paiement ponctuel de 30 jours, sans renouvellement automatique.
+
+Dans FedaPay, configurez le webhook sur `/api/webhooks/fedapay` et copiez son secret dans `FEDAPAY_WEBHOOK_SECRET`. L'intégration utilise les clés live uniquement si `FEDAPAY_ENVIRONMENT=live`; gardez `sandbox` pendant les tests. Définissez `PREMIUM_30D_PRICE_XOF` avant d'activer l'offre.
+
+## Contrôles
+
+```bash
+npm run lint
+npm run build
+npm run db:generate
+npm audit
+```
+
+Le plan de travail par vagues, les tâches restantes et leurs critères de sortie sont centralisés dans [TODO.md](TODO.md).

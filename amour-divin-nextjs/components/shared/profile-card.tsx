@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Heart, Eye, Send, CheckCircle } from "lucide-react";
 
@@ -7,18 +8,21 @@ import { unsplashUrl } from "@/data/profiles";
 interface ProfileCardProps {
   profile: Profile;
   onFavorite?: (id: string) => void;
+  onRequest?: (id: string) => void;
   isFavorite?: boolean;
   showActions?: boolean;
 }
 
-export default function ProfileCard({ profile, onFavorite, isFavorite, showActions = true }: ProfileCardProps) {
+export default function ProfileCard({ profile, onFavorite, onRequest, isFavorite, showActions = true }: ProfileCardProps) {
   return (
     <div className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group">
       <div className="relative aspect-[4/5] overflow-hidden bg-[var(--color-beige)]">
-        <img
+        <Image
           src={unsplashUrl(profile.photo, 400, 500)}
           alt={profile.firstName}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {profile.verified && (
           <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
@@ -50,6 +54,7 @@ export default function ProfileCard({ profile, onFavorite, isFavorite, showActio
             <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
           </button>
           <button
+            onClick={() => onRequest?.(profile.id)}
             className="flex items-center justify-center w-10 h-10 rounded-xl text-white transition-all hover:opacity-90"
             style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
           >

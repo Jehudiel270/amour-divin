@@ -1,26 +1,97 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Heart, Send, Flag, MapPin, Briefcase, ArrowLeft, X } from "lucide-react";
 
-import { PROFILES, unsplashUrl } from "@/data/profiles";
+import { unsplashUrl } from "@/data/profiles";
+import type { Profile } from "@/types";
 
 export default function ProfileView() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const profile = PROFILES.find((p) => p.id === params.id) || PROFILES[0];
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [favorite, setFavorite] = useState(false);
   const [requested, setRequested] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [reportReason, setReportReason] = useState("");
 
-  const sendRequest = () => {
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetch(`/api/profiles/${params.id}`), fetch("/api/favorites")])
+      .then(async ([profileResponse, favoritesResponse]) => {
+        const [profileData, favoritesData] = await Promise.all([profileResponse.json(), favoritesResponse.json()]);
+        if (!profileResponse.ok || !favoritesResponse.ok) throw new Error(profileData.error || favoritesData.error);
+        if (!active) return;
+        setProfile(profileData.profile);
+        setFavorite(favoritesData.favorites.some((savedProfile: Profile) => savedProfile.id === params.id));
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Profil indisponible.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [params.id]);
+
+  const sendRequest = async () => {
+    const response = await fetch("/api/connection-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recipientId: params.id, message: "" }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Impossible d'envoyer la demande.");
+      return;
+    }
     setRequested(true);
-    setSuccess("Demande envoyée à " + profile.firstName + " !");
-    setTimeout(() => setSuccess(""), 3000);
+    setSuccess("Demande envoyée.");
   };
+
+  const toggleFavorite = async () => {
+    const response = await fetch("/api/favorites", {
+      method: favorite ? "DELETE" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId: params.id }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Impossible de mettre à jour le favori.");
+      return;
+    }
+    setFavorite(!favorite);
+  };
+
+  const submitReport = async () => {
+    const reasonMap: Record<string, string> = {
+      "Faux profil ou usurpation": "fake_profile",
+      "Comportement inapproprié": "harassment",
+      "Contenu offensant": "inappropriate_content",
+      "Spam ou arnaque": "scam",
+      Autre: "other",
+    };
+    const response = await fetch("/api/reports", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId: params.id, reason: reasonMap[reportReason] }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Impossible d'envoyer le signalement.");
+      return;
+    }
+    setShowReport(false);
+    setSuccess("Signalement transmis à l'équipe de modération.");
+  };
+
+  if (!profile) {
+    return <div className="min-h-screen bg-[var(--color-cream)] px-6 pt-24 text-center text-sm text-slate-500">{error || "Chargement du profil..."}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-cream)] pt-16">
@@ -35,13 +106,14 @@ export default function ProfileView() {
             <CheckCircle size={16} /> {success}
           </div>
         )}
+        {error && <div role="alert" className="mb-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Photo & Actions */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-3xl overflow-hidden shadow-sm sticky top-24">
               <div className="relative aspect-[3/4] bg-[var(--color-beige)]">
-                <img src={unsplashUrl(profile.photo, 400, 533)} alt={profile.firstName} className="w-full h-full object-cover" />
+                <Image src={unsplashUrl(profile.photo, 400, 533)} alt={`Photo de ${profile.firstName}`} fill sizes="(max-width: 1024px) 100vw, 33vw" className="object-cover" />
                 {profile.verified && (
                   <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
                     <CheckCircle size={14} className="text-[var(--color-lavender)]" />
@@ -73,7 +145,7 @@ export default function ProfileView() {
                     <Send size={15} /> {requested ? "Demande envoyée" : "Envoyer une demande"}
                   </button>
                   <button
-                    onClick={() => setFavorite(!favorite)}
+                    onClick={toggleFavorite}
                     className={`w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border transition-all ${
                       favorite ? "border-red-200 bg-red-50 text-red-400" : "border-[var(--color-beige-dark)] text-slate-600 hover:border-[var(--color-lavender)]"
                     }`}
@@ -149,15 +221,12 @@ export default function ProfileView() {
             <div className="space-y-2 mb-6">
               {["Faux profil ou usurpation", "Comportement inapproprié", "Contenu offensant", "Spam ou arnaque", "Autre"].map((r) => (
                 <label key={r} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-[var(--color-beige)] transition-colors">
-                  <input type="radio" name="reason" className="accent-[var(--color-midnight)]" /> <span className="text-sm text-slate-700">{r}</span>
+                  <input type="radio" name="reason" checked={reportReason === r} onChange={() => setReportReason(r)} className="accent-[var(--color-midnight)]" /> <span className="text-sm text-slate-700">{r}</span>
                 </label>
               ))}
             </div>
             <button
-              onClick={() => {
-                setShowReport(false);
-                setSuccess("Signalement envoyé. Merci de nous avoir alertés.");
-              }}
+              onClick={submitReport}
               className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
               style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
             >

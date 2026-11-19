@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Heart, Shield, Star, Users, ArrowRight } from "lucide-react";
 
 import Footer from "@/components/shared/footer";
-import { unsplashUrl } from "@/data/profiles";
 
 export const metadata: Metadata = { title: "À propos" };
 
@@ -38,12 +38,6 @@ const VALUES = [
   },
 ];
 
-const TEAM = [
-  { name: "Pasteur Élias Moreau", role: "Fondateur & Directeur spirituel", photo: "photo-1507003211169-0a1dd7228f2d" },
-  { name: "Marie Dupont", role: "Directrice produit", photo: "photo-1438761681033-6461ffad8d80" },
-  { name: "Jonathan Koffi", role: "Responsable sécurité & modération", photo: "photo-1500648767791-00dcc994a43e" },
-];
-
 export default function About() {
   return (
     <div className="min-h-screen bg-[var(--color-cream)] pt-16">
@@ -70,10 +64,10 @@ export default function About() {
                 Nous croyons que chaque jeune adulte chrétien mérite de trouver quelqu&apos;un qui partage non seulement ses goûts, mais aussi ses convictions profondes, sa vision de la famille, et sa relation avec Dieu.
               </p>
               <p className="text-slate-600 leading-relaxed mb-4">
-                AD a été conçu pour offrir un espace de rencontres sincères, à l&apos;abri des pressions superficielles. Ici, les profils sont vérifiés, les échanges sont respectueux, et la foi est célébrée, pas cachée.
+                AD est conçu pour offrir un espace de rencontres sincères et respectueuses, où la foi peut être partagée ouvertement.
               </p>
               <p className="text-slate-600 leading-relaxed mb-8">
-                Notre équipe est composée de chrétiens engagés qui comprennent les enjeux et les désirs de cette communauté. Nous ne sommes pas juste une tech company : nous sommes des croyants qui ont voulu créer quelque chose de bien.
+                La plateforme est en cours de construction. Les fonctions de modération, de confidentialité et de prise en charge seront décrites selon leur fonctionnement réel avant l&apos;ouverture publique.
               </p>
               <Link
                 href="/inscription"
@@ -84,11 +78,7 @@ export default function About() {
               </Link>
             </div>
             <div className="relative">
-              <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=700&fit=crop&auto=format" alt="Couple heureux" className="rounded-3xl w-full object-cover shadow-xl" />
-              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl p-5 shadow-lg">
-                <p className="font-display font-bold text-2xl text-[var(--color-midnight)]">2 100+</p>
-                <p className="text-sm text-slate-500">couples formés sur AD</p>
-              </div>
+              <Image src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=700&fit=crop&auto=format" alt="Groupe de jeunes adultes réunis en plein air" width={600} height={700} sizes="(max-width: 1024px) 100vw, 50vw" className="rounded-3xl w-full object-cover shadow-xl" />
             </div>
           </div>
         </div>
@@ -108,24 +98,6 @@ export default function About() {
                 </div>
                 <h3 className="font-display text-2xl font-bold text-[var(--color-midnight)] mb-4">{v.title}</h3>
                 <p className="text-slate-500 leading-relaxed">{v.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 bg-[var(--color-cream)]">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="text-[var(--color-lavender)] text-sm font-semibold uppercase tracking-widest">Des humains derrière l&apos;écran</span>
-            <h2 className="font-display text-4xl font-bold text-[var(--color-midnight)] mt-3">L&apos;équipe AD</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {TEAM.map((member) => (
-              <div key={member.name} className="text-center">
-                <img src={unsplashUrl(member.photo, 200, 200)} alt={member.name} className="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 shadow-md" />
-                <h4 className="font-display font-bold text-lg text-[var(--color-midnight)]">{member.name}</h4>
-                <p className="text-sm text-slate-500 mt-1">{member.role}</p>
               </div>
             ))}
           </div>

@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCheck } from "lucide-react";
-
-import { NOTIFICATIONS } from "@/data/notifications";
 
 const TYPE_STYLES: Record<string, string> = {
   match: "var(--color-lavender-light)",
@@ -14,10 +12,45 @@ const TYPE_STYLES: Record<string, string> = {
 };
 
 export default function Notifications() {
-  const [items, setItems] = useState(NOTIFICATIONS);
+  const [items, setItems] = useState<Array<{ id: string; type: string; text: string; time: string; read: boolean; icon: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const markAllRead = () => setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-  const markRead = (id: string) => setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  useEffect(() => {
+    let active = true;
+    fetch("/api/notifications")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Notifications indisponibles.");
+        if (!active) return;
+        setItems(result.notifications.map((item: { id: string; kind: string; payload: Record<string, unknown>; readAt: string | null; createdAt: string }) => ({
+          id: item.id,
+          type: item.kind,
+          text: typeof item.payload.text === "string" ? item.payload.text : "Une nouvelle activité concerne votre compte.",
+          time: new Date(item.createdAt).toLocaleString("fr-FR"),
+          read: Boolean(item.readAt),
+          icon: item.kind === "match" ? "💞" : item.kind === "message" ? "💬" : item.kind === "request" ? "💌" : "🔔",
+        })));
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Notifications indisponibles.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const markAllRead = async () => {
+    const response = await fetch("/api/notifications", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
+    if (response.ok) setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+  const markRead = async (id: string) => {
+    const response = await fetch("/api/notifications", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ notificationId: id }) });
+    if (response.ok) setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  };
 
   const unreadCount = items.filter((n) => !n.read).length;
 
@@ -36,7 +69,10 @@ export default function Notifications() {
           )}
         </div>
 
-        {items.length === 0 ? (
+        {error && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {loading ? (
+          <p className="py-16 text-center text-sm text-slate-400">Chargement...</p>
+        ) : items.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-5xl mb-4">🔔</div>
             <h3 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-2">Aucune notification</h3>

@@ -9,13 +9,34 @@ export default function Report() {
   const [form, setForm] = useState({ target: "", reason: "", description: "" });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSent(true);
+    setError("");
+    const reasonCodes: Record<string, string> = {
+      "Faux profil ou usurpation d'identité": "fake_profile",
+      "Comportement harcelant ou insistant": "harassment",
+      "Contenu offensant ou inapproprié": "inappropriate_content",
+      "Spam ou tentative d'escroquerie": "scam",
+      "Profil d'une personne mineure": "minor_suspected",
+      "Autre raison": "other",
+    };
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ targetUserId: form.target.trim(), reason: reasonCodes[form.reason], details: form.description }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Signalement non envoyé.");
+      setSent(true);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Signalement indisponible.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,7 +47,7 @@ export default function Report() {
             <Flag size={26} />
           </div>
           <h1 className="font-display text-3xl font-bold text-[var(--color-midnight)] mb-2">Signaler un profil</h1>
-          <p className="text-slate-500 text-sm">Toutes les informations transmises sont traitées de façon confidentielle par notre équipe de modération.</p>
+          <p className="text-slate-500 text-sm">Transmettez l&apos;identifiant du profil et les faits à examiner par la modération.</p>
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-sm">
@@ -36,7 +57,7 @@ export default function Report() {
                 <CheckCircle size={32} className="text-green-500" />
               </div>
               <h2 className="font-display text-2xl font-bold text-[var(--color-midnight)] mb-3">Signalement envoyé</h2>
-              <p className="text-slate-500 text-sm leading-relaxed mb-6">Merci pour votre vigilance. Notre équipe va examiner votre signalement sous 24 heures.</p>
+              <p className="text-slate-500 text-sm leading-relaxed mb-6">Votre signalement a été enregistré pour examen.</p>
               <button
                 onClick={() => {
                   setSent(false);
@@ -50,15 +71,16 @@ export default function Report() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
+              {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Profil ou identifiant concerné</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Identifiant du profil concerné</label>
                 <input
                   type="text"
                   required
                   value={form.target}
                   onChange={(e) => setForm((p) => ({ ...p, target: e.target.value }))}
                   className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all"
-                  placeholder="Prénom, ville, ou lien du profil"
+                  placeholder="Identifiant du membre"
                 />
               </div>
               <div>

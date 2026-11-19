@@ -1,15 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
-import { useAuth } from "@/lib/auth-context";
+import { authClient } from "@/lib/auth/client";
+import { translateAuthError } from "@/lib/auth/messages";
 
 export default function Login() {
   const router = useRouter();
-  const { setLoggedIn } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,18 +20,23 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    if (form.email && form.password) {
-      setLoggedIn(true);
+    try {
+      const result = await authClient.signIn.email({ email: form.email, password: form.password });
+      if (result.error) {
+        setError(translateAuthError(result.error, "Adresse e-mail ou mot de passe incorrect."));
+        return;
+      }
       router.push("/decouvrir");
-    } else {
-      setError("E-mail ou mot de passe incorrect.");
+      router.refresh();
+    } catch {
+      setError("Connexion indisponible. Vérifiez votre configuration ou réessayez plus tard.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--color-beige)" }}>
+    <div className="auth-shell min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 relative" style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}>
         <div className="flex flex-col items-center justify-center w-full px-12 text-center">
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-8 bg-white/10">
@@ -38,13 +44,13 @@ export default function Login() {
           </div>
           <h2 className="font-display text-4xl font-bold text-white mb-6">Content de vous revoir !</h2>
           <p className="text-white/70 leading-relaxed max-w-sm">Des personnes sincères vous attendent. Connectez-vous et poursuivez votre aventure.</p>
-          <img src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=500&h=300&fit=crop&auto=format" alt="Couple" className="rounded-2xl mt-10 w-full max-w-sm object-cover shadow-xl" />
+          <Image src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=500&h=300&fit=crop&auto=format" alt="Deux personnes partageant un moment au coucher du soleil" width={500} height={300} priority sizes="(max-width: 1024px) 0px, 30vw" className="rounded-2xl mt-10 w-full max-w-sm object-cover shadow-xl" />
         </div>
       </div>
 
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-3xl p-10 shadow-sm">
+          <div className="auth-card p-6 sm:p-10">
             <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}>
                 <span className="text-white font-display font-bold text-sm">AD</span>

@@ -1,16 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Heart, Eye, X, CheckCircle } from "lucide-react";
 
-import { PROFILES, unsplashUrl } from "@/data/profiles";
+import { unsplashUrl } from "@/data/profiles";
+import type { Profile } from "@/types";
 
 export default function Favorites() {
-  const [favorites, setFavorites] = useState(PROFILES.slice(0, 4).map((p) => p.id));
+  const [favorites, setFavorites] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const remove = (id: string) => setFavorites((prev) => prev.filter((f) => f !== id));
-  const favProfiles = PROFILES.filter((p) => favorites.includes(p.id));
+  useEffect(() => {
+    let active = true;
+    fetch("/api/favorites")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Favoris indisponibles.");
+        if (active) setFavorites(result.favorites);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Favoris indisponibles.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const remove = async (id: string) => {
+    const response = await fetch("/api/favorites", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId: id }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      setError(result.error || "Impossible de retirer ce favori.");
+      return;
+    }
+    setFavorites((current) => current.filter((profile) => profile.id !== id));
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-cream)] pt-16">
@@ -19,7 +53,7 @@ export default function Favorites() {
           <div>
             <h1 className="font-display text-3xl font-bold text-[var(--color-midnight)]">Mes favoris</h1>
             <p className="text-slate-500 text-sm mt-1">
-              {favProfiles.length} profil{favProfiles.length > 1 ? "s" : ""} enregistré{favProfiles.length > 1 ? "s" : ""}
+              {favorites.length} profil{favorites.length > 1 ? "s" : ""} enregistré{favorites.length > 1 ? "s" : ""}
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--color-lavender-light)", color: "var(--color-lavender)" }}>
@@ -27,7 +61,10 @@ export default function Favorites() {
           </div>
         </div>
 
-        {favProfiles.length === 0 ? (
+        {error && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {loading ? (
+          <div className="py-20 text-center text-sm text-slate-400">Chargement des favoris...</div>
+        ) : favorites.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-5xl mb-4">💝</div>
             <h3 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-2">Aucun favori pour l&apos;instant</h3>
@@ -42,10 +79,10 @@ export default function Favorites() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {favProfiles.map((p) => (
+            {favorites.map((p) => (
               <div key={p.id} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
                 <div className="relative aspect-[4/3] overflow-hidden bg-[var(--color-beige)]">
-                  <img src={unsplashUrl(p.photo, 400, 300)} alt={p.firstName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <Image src={unsplashUrl(p.photo, 400, 300)} alt={`Photo de ${p.firstName}`} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-105" />
                   {p.verified && (
                     <div className="absolute top-3 left-3 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
                       <CheckCircle size={11} className="text-[var(--color-lavender)]" />

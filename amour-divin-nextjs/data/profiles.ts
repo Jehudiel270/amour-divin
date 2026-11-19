@@ -128,6 +128,7 @@ export function getProfileById(id: string): Profile | undefined {
 }
 
 export function unsplashUrl(photoId: string, w: number, h: number): string {
+  if (photoId.startsWith("https://")) return photoId;
   return `https://images.unsplash.com/${photoId}?w=${w}&h=${h}&fit=crop&auto=format`;
 }
 

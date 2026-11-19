@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Shield, Lock, Bell, CreditCard, HelpCircle, LogOut, Trash2, Check } from "lucide-react";
+import { User, Shield, Lock, Bell, CreditCard, HelpCircle, LogOut, Check } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
-import { useAuth } from "@/lib/auth-context";
-import { CURRENT_USER_PHOTO } from "@/data/profiles";
+import { authClient } from "@/lib/auth/client";
+import { translateAuthError } from "@/lib/auth/messages";
 
 const SECTIONS = [
   { id: "profile", label: "Mon profil", icon: <User size={18} /> },
@@ -19,21 +20,180 @@ const SECTIONS = [
 
 export default function Settings() {
   const router = useRouter();
-  const { setLoggedIn } = useAuth();
   const [active, setActive] = useState("profile");
   const [notifs, setNotifs] = useState({ matches: true, messages: true, requests: true, marketing: false });
   const [visible, setVisible] = useState(true);
-  const [showDelete, setShowDelete] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
+  const [activePlan, setActivePlan] = useState<{ planCode: string; endsAt: string | null } | null>(null);
+  const [plans, setPlans] = useState<Array<{ code: string; name: string; description: string; amountXof: number; durationDays: number; features: string[] }>>([]);
+  const [totpPassword, setTotpPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [totpUri, setTotpUri] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [totpError, setTotpError] = useState("");
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [passwordCurrent, setPasswordCurrent] = useState("");
+  const [passwordNew, setPasswordNew] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/billing/status")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Abonnement indisponible.");
+        if (active) {
+          setActivePlan(result.subscription);
+          setPlans(Array.isArray(result.plans) ? result.plans : []);
+        }
+      })
+      .catch(() => {
+        if (active) setBillingError("Impossible de charger votre abonnement.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const save = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const logout = () => {
-    setLoggedIn(false);
+  const logout = async () => {
+    await authClient.signOut();
     router.push("/");
+    router.refresh();
+  };
+
+  type TwoFactorResult = {
+    error?: { message?: string };
+    data?: { totpURI?: string; totpUri?: string; backupCodes?: string[] };
+  };
+  const twoFactor = (authClient as unknown as {
+    twoFactor: {
+      enable: (args: { password: string; method: "totp"; issuer: string }) => Promise<TwoFactorResult>;
+      verifyTotp: (args: { code: string; trustDevice?: boolean }) => Promise<TwoFactorResult>;
+      disable: (args: { password: string }) => Promise<TwoFactorResult>;
+    };
+  }).twoFactor;
+
+  const enableTotp = async () => {
+    setTotpLoading(true);
+    setTotpError("");
+    try {
+      const rawResult: unknown = await twoFactor.enable({ password: totpPassword, method: "totp", issuer: process.env.NEXT_PUBLIC_CHURCH_NAME || "Église Amour Divin" });
+      const result = rawResult as {
+        error?: { message?: string };
+        data?: { totpURI?: string; totpUri?: string; backupCodes?: string[] };
+        totpURI?: string;
+        totpUri?: string;
+        backupCodes?: string[];
+      };
+      if (result.error) throw new Error(translateAuthError(result.error, "Activation TOTP impossible."));
+      const data = result.data ?? result;
+      setTotpUri(data.totpURI || data.totpUri || "");
+      setBackupCodes(Array.isArray(data.backupCodes) ? data.backupCodes : []);
+    } catch (setupError) {
+      setTotpError(setupError instanceof Error ? setupError.message : "Activation TOTP indisponible.");
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const verifyTotp = async () => {
+    setTotpLoading(true);
+    setTotpError("");
+    try {
+      const result = await twoFactor.verifyTotp({ code: totpCode, trustDevice: true });
+      if (result.error) throw new Error(translateAuthError(result.error, "Code TOTP invalide."));
+      setTotpEnabled(true);
+      setTotpUri("");
+      setTotpCode("");
+    } catch (verificationError) {
+      setTotpError(verificationError instanceof Error ? verificationError.message : "Code TOTP invalide.");
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const changePassword = async () => {
+    setPasswordLoading(true);
+    setPasswordError("");
+    setPasswordMessage("");
+    if (passwordNew.length < 8) {
+      setPasswordError("Le nouveau mot de passe doit contenir au moins 8 caractères.");
+      setPasswordLoading(false);
+      return;
+    }
+    if (passwordNew !== passwordConfirm) {
+      setPasswordError("Les nouveaux mots de passe ne correspondent pas.");
+      setPasswordLoading(false);
+      return;
+    }
+    try {
+      const changePasswordClient = (authClient as unknown as {
+        changePassword: (args: { currentPassword: string; newPassword: string; revokeOtherSessions?: boolean }) => Promise<{ error?: unknown }>;
+      }).changePassword;
+      const result = await changePasswordClient({
+        currentPassword: passwordCurrent,
+        newPassword: passwordNew,
+        revokeOtherSessions: false,
+      });
+      if (result.error) throw new Error(translateAuthError(result.error, "Modification du mot de passe impossible."));
+      setPasswordMessage("Votre mot de passe a été modifié.");
+      setPasswordCurrent("");
+      setPasswordNew("");
+      setPasswordConfirm("");
+    } catch (changeError) {
+      setPasswordError(changeError instanceof Error ? changeError.message : "Modification du mot de passe impossible.");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const disableTotp = async () => {
+    setTotpLoading(true);
+    setTotpError("");
+    try {
+      const result = await twoFactor.disable({ password: totpPassword });
+      if (result.error) throw new Error(translateAuthError(result.error, "Désactivation TOTP impossible."));
+      setTotpEnabled(false);
+      setTotpUri("");
+      setBackupCodes([]);
+    } catch (disableError) {
+      setTotpError(disableError instanceof Error ? disableError.message : "Désactivation indisponible.");
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const startPremiumCheckout = async (planCode: string) => {
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ planCode }),
+      });
+      const result = await response.json();
+      if (!response.ok || typeof result.paymentUrl !== "string") {
+        setBillingError(result.error || "Le paiement n'est pas disponible pour le moment.");
+        return;
+      }
+      window.location.assign(result.paymentUrl);
+    } catch {
+      setBillingError("Impossible de joindre le service de paiement.");
+    } finally {
+      setBillingLoading(false);
+    }
   };
 
   return (
@@ -71,7 +231,7 @@ export default function Settings() {
                 <div>
                   <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-6">Mon profil</h2>
                   <div className="flex items-center gap-4 mb-6">
-                    <img src={CURRENT_USER_PHOTO} alt="Profil" className="w-20 h-20 rounded-2xl object-cover" />
+                    <div aria-hidden="true" className="w-20 h-20 rounded-2xl bg-[var(--color-lavender-light)]" />
                     <div>
                       <Link
                         href="/creation-profil"
@@ -105,17 +265,46 @@ export default function Settings() {
                 <div>
                   <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-6">Sécurité</h2>
                   <div className="space-y-4">
+                    {passwordError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{passwordError}</p>}
+                    {passwordMessage && <p role="status" className="rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-700">{passwordMessage}</p>}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Mot de passe actuel</label>
-                      <input type="password" className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all" placeholder="••••••••" />
+                      <input type="password" value={passwordCurrent} onChange={(event) => setPasswordCurrent(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all" placeholder="••••••••" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Nouveau mot de passe</label>
-                      <input type="password" className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all" placeholder="••••••••" />
+                      <input type="password" value={passwordNew} onChange={(event) => setPasswordNew(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all" placeholder="8 caractères minimum" />
                     </div>
-                    <div className="p-4 rounded-2xl flex items-start gap-3" style={{ background: "var(--color-lavender-light)" }}>
-                      <Shield size={18} className="text-[var(--color-lavender)] mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-slate-600">Votre compte est protégé par une vérification en 2 étapes. Nous vous recommandons de la maintenir active.</p>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Confirmer le nouveau mot de passe</label>
+                      <input type="password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-[var(--color-beige-dark)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)] transition-all" placeholder="••••••••" />
+                    </div>
+                    <button type="button" onClick={() => void changePassword()} disabled={passwordLoading || !passwordCurrent || !passwordNew || !passwordConfirm} className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--color-midnight)" }}>{passwordLoading ? "Modification…" : "Modifier le mot de passe"}</button>
+                    <div className="p-4 rounded-2xl space-y-4" style={{ background: "var(--color-lavender-light)" }}>
+                      <div className="flex items-start gap-3">
+                        <Shield size={18} className="text-[var(--color-lavender)] mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-slate-600">Authentification TOTP avec application authenticator. Les super administrateurs doivent l&apos;activer avant l&apos;accès complet.</p>
+                      </div>
+                      {totpError && <p role="alert" className="text-sm text-red-700">{totpError}</p>}
+                      {totpEnabled ? (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium text-green-700">TOTP activé.</p>
+                          <input type="password" value={totpPassword} onChange={(event) => setTotpPassword(event.target.value)} placeholder="Mot de passe actuel" className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm" />
+                          <button onClick={() => void disableTotp()} disabled={totpLoading || !totpPassword} className="w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 disabled:opacity-50">Désactiver le TOTP</button>
+                        </div>
+                      ) : totpUri ? (
+                        <div className="space-y-4">
+                          <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG value={totpUri} size={180} /></div>
+                          {backupCodes.length > 0 && <div className="rounded-xl bg-white p-3"><p className="mb-2 text-xs font-semibold uppercase text-slate-500">Codes de secours</p><p className="break-all text-xs leading-relaxed text-slate-600">{backupCodes.join(" ")}</p></div>}
+                          <input type="text" inputMode="numeric" value={totpCode} onChange={(event) => setTotpCode(event.target.value)} placeholder="Code TOTP à 6 chiffres" className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm" />
+                          <button onClick={() => void verifyTotp()} disabled={totpLoading || totpCode.length < 6} className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--color-midnight)" }}>Vérifier et activer</button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <input type="password" value={totpPassword} onChange={(event) => setTotpPassword(event.target.value)} placeholder="Mot de passe actuel" className="w-full rounded-xl border border-[var(--color-beige-dark)] px-4 py-3 text-sm" />
+                          <button onClick={() => void enableTotp()} disabled={totpLoading || !totpPassword} className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--color-midnight)" }}>Configurer le TOTP</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -176,27 +365,33 @@ export default function Settings() {
                 <div>
                   <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-6">Abonnement</h2>
                   <div className="p-6 rounded-2xl mb-4" style={{ background: "var(--color-lavender-light)" }}>
-                    <p className="text-sm font-semibold text-[var(--color-midnight)] mb-1">Plan actuel : Gratuit</p>
-                    <p className="text-xs text-slate-500">Découverte illimitée, 5 demandes par jour.</p>
+                    <p className="text-sm font-semibold text-[var(--color-midnight)] mb-1">Plan actuel : {activePlan ? "AD Premium" : "Gratuit"}</p>
+                    <p className="text-xs text-slate-500">{activePlan?.endsAt ? `Valable jusqu'au ${new Date(activePlan.endsAt).toLocaleDateString("fr-FR")}.` : "Accès gratuit aux fonctions de base."}</p>
                   </div>
-                  <div className="p-6 rounded-2xl border-2" style={{ borderColor: "var(--color-gold)" }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-display font-bold text-lg text-[var(--color-midnight)]">AD Premium</p>
-                      <span className="text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: "var(--color-gold)" }}>
-                        Populaire
-                      </span>
-                    </div>
-                    <ul className="space-y-2 mb-4">
-                      {["Demandes illimitées", "Voir qui a consulté votre profil", "Mise en avant de votre profil", "Filtres de recherche avancés"].map((f) => (
-                        <li key={f} className="flex items-center gap-2 text-sm text-slate-600">
-                          <Check size={14} className="text-green-500" /> {f}
-                        </li>
+                  {plans.length === 0 ? (
+                    <div className="rounded-2xl border border-[var(--color-beige-dark)] p-6 text-sm text-slate-500">Aucune offre payante n&apos;est actuellement disponible.</div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {plans.map((plan, index) => (
+                        <div key={plan.code} className="rounded-2xl border-2 p-5" style={{ borderColor: index === 1 ? "var(--color-gold)" : "var(--color-beige-dark)" }}>
+                          {index === 1 && <p className="mb-3 w-fit rounded-full px-2.5 py-1 text-[11px] font-bold text-white" style={{ background: "var(--color-gold)" }}>Populaire</p>}
+                          <p className="font-display text-lg font-bold text-[var(--color-midnight)]">{plan.name}</p>
+                          <p className="mt-1 min-h-10 text-xs leading-relaxed text-slate-500">{plan.description}</p>
+                          <p className="my-4 font-display text-2xl font-bold text-[var(--color-midnight)]">{plan.amountXof.toLocaleString("fr-FR")} <span className="text-xs">XOF</span></p>
+                          <p className="mb-4 text-xs font-semibold text-[var(--color-lavender)]">{plan.durationDays} jours</p>
+                          <ul className="mb-5 space-y-2">
+                            {(plan.features.length > 0 ? plan.features : ["Demandes illimitées", "Filtres avancés"]).map((feature) => (
+                              <li key={feature} className="flex items-center gap-2 text-xs text-slate-600"><Check size={13} className="text-green-500" /> {feature}</li>
+                            ))}
+                          </ul>
+                          <button onClick={() => void startPremiumCheckout(plan.code)} disabled={billingLoading} className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ background: index === 1 ? "var(--color-gold)" : "var(--color-midnight)" }}>
+                            {billingLoading ? "Préparation..." : `Choisir ${plan.name}`}
+                          </button>
+                        </div>
                       ))}
-                    </ul>
-                    <button className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "var(--color-gold)" }}>
-                      Passer à Premium
-                    </button>
-                  </div>
+                    </div>
+                  )}
+                  {billingError && <p role="alert" className="mt-3 text-sm text-red-600">{billingError}</p>}
                 </div>
               )}
 
@@ -236,32 +431,14 @@ export default function Settings() {
             </div>
 
             {active === "profile" && (
-              <div className="mt-6">
-                <button onClick={() => setShowDelete(true)} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-500 transition-colors">
-                  <Trash2 size={15} /> Supprimer mon compte
-                </button>
-              </div>
+              <p className="mt-6 text-sm text-slate-500">
+                Pour demander la suppression de votre compte, <Link href="/contact" className="font-medium text-[var(--color-lavender)] underline">contactez l&apos;équipe</Link>.
+              </p>
             )}
           </div>
         </div>
       </div>
 
-      {showDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowDelete(false)}>
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-3">Supprimer votre compte ?</h3>
-            <p className="text-slate-500 text-sm mb-6">Cette action est irréversible. Toutes vos données, conversations et correspondances seront définitivement supprimées.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDelete(false)} className="flex-1 py-3 rounded-xl text-sm font-medium border border-[var(--color-beige-dark)] text-slate-600 hover:bg-[var(--color-beige)] transition-colors">
-                Annuler
-              </button>
-              <button onClick={logout} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors">
-                Confirmer la suppression
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

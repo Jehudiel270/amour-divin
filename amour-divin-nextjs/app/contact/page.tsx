@@ -6,16 +6,29 @@ import { Mail, MessageSquare, CheckCircle, MapPin, Clock } from "lucide-react";
 import Footer from "@/components/shared/footer";
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", website: "" });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSent(true);
+    setError("");
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Le message n'a pas pu être enregistré.");
+      setSent(true);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Le formulaire est indisponible.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,7 +39,7 @@ export default function Contact() {
             <MessageSquare size={26} />
           </div>
           <h1 className="font-display text-4xl md:text-5xl font-bold text-[var(--color-midnight)] mb-4">Contactez-nous</h1>
-          <p className="text-slate-600">Une question, une suggestion ? Notre équipe vous répond sous 48 heures.</p>
+          <p className="text-slate-600">Une question, une suggestion ? Envoyez-la à l&apos;équipe via ce formulaire.</p>
         </div>
       </section>
 
@@ -43,7 +56,7 @@ export default function Contact() {
                 <button
                   onClick={() => {
                     setSent(false);
-                    setForm({ name: "", email: "", subject: "", message: "" });
+                    setForm({ name: "", email: "", subject: "", message: "", website: "" });
                   }}
                   className="mt-6 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
                   style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
@@ -53,6 +66,8 @@ export default function Contact() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
+                {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                <input type="text" name="website" value={form.website} onChange={(event) => setForm((current) => ({ ...current, website: event.target.value }))} tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Nom</label>
@@ -120,17 +135,17 @@ export default function Contact() {
             <div className="bg-white rounded-3xl p-6 shadow-sm">
               <Mail size={20} className="text-[var(--color-lavender)] mb-3" />
               <h3 className="font-semibold text-sm text-[var(--color-midnight)] mb-1">E-mail</h3>
-              <p className="text-sm text-slate-500">contact@amourdivin.fr</p>
+              <p className="text-sm text-slate-500">Adresse e-mail à configurer avant lancement.</p>
             </div>
             <div className="bg-white rounded-3xl p-6 shadow-sm">
               <Clock size={20} className="text-[var(--color-lavender)] mb-3" />
               <h3 className="font-semibold text-sm text-[var(--color-midnight)] mb-1">Temps de réponse</h3>
-              <p className="text-sm text-slate-500">Sous 48 heures ouvrées</p>
+              <p className="text-sm text-slate-500">Délai à définir avant lancement.</p>
             </div>
             <div className="bg-white rounded-3xl p-6 shadow-sm">
               <MapPin size={20} className="text-[var(--color-lavender)] mb-3" />
               <h3 className="font-semibold text-sm text-[var(--color-midnight)] mb-1">Siège</h3>
-              <p className="text-sm text-slate-500">Paris, France</p>
+              <p className="text-sm text-slate-500">Siège à définir.</p>
             </div>
           </div>
         </div>

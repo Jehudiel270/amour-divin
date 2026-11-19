@@ -82,10 +82,10 @@ export default function Safety() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { title: "Chiffrement SSL", desc: "Toutes les communications et données sont chiffrées." },
-                { title: "Aucune revente", desc: "Vos données ne sont jamais vendues à des tiers." },
-                { title: "Contrôle total", desc: "Vous contrôlez ce qui est visible sur votre profil." },
-                { title: "Droit d'effacement", desc: "Supprimez votre compte et vos données à tout moment." },
+                { title: "Connexions HTTPS", desc: "Le domaine de production devra utiliser HTTPS avant toute ouverture publique." },
+                { title: "Données minimales", desc: "Les informations recueillies et leurs usages doivent être détaillés dans la politique finale." },
+                { title: "Visibilité du profil", desc: "Le réglage de visibilité est en cours de connexion aux données persistantes." },
+                { title: "Demandes de données", desc: "Contactez l'équipe pour demander une intervention sur votre compte pendant la bêta." },
               ].map((item) => (
                 <div key={item.title} className="p-5 rounded-2xl" style={{ background: "var(--color-beige)" }}>
                   <h4 className="font-semibold text-[var(--color-midnight)] mb-1">{item.title}</h4>
@@ -105,12 +105,12 @@ export default function Safety() {
               </div>
               <h2 className="font-display text-2xl font-bold text-[var(--color-midnight)]">Vérification des profils</h2>
             </div>
-            <p className="text-slate-600 mb-6">Notre processus de vérification en 3 étapes garantit l&apos;authenticité de chaque membre :</p>
+            <p className="text-slate-600 mb-6">Les profils soumis sont destinés à être examinés avant publication; la vérification d&apos;identité et les badges ne sont pas encore disponibles.</p>
             <div className="flex flex-col md:flex-row gap-4">
               {[
-                { n: "1", t: "Email confirmé", d: "Vérification de l'adresse e-mail lors de l'inscription." },
-                { n: "2", t: "Profil examiné", d: "Notre équipe valide manuellement chaque profil publié." },
-                { n: "3", t: "Badge vérifié", d: "Un badge visible indique les profils validés à la communauté." },
+                { n: "1", t: "Compte", d: "La vérification email dépend de l'activation Neon Auth et de la configuration du service email." },
+                { n: "2", t: "Profil", d: "Les profils attendent une revue manuelle avant publication." },
+                { n: "3", t: "Identité", d: "La vérification d'identité et le badge sont à construire." },
               ].map((s) => (
                 <div key={s.n} className="flex-1 p-6 rounded-2xl text-center" style={{ background: "var(--color-lavender-light)" }}>
                   <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-white text-sm" style={{ background: "var(--color-lavender)" }}>

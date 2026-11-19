@@ -1,32 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 
 import ProfileCard from "@/components/shared/profile-card";
-import { PROFILES } from "@/data/profiles";
+import type { Profile } from "@/types";
 
 export default function Discover() {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ minAge: 18, maxAge: 50, city: "", distance: 100 });
+  const [filters, setFilters] = useState({ minAge: 18, maxAge: 70, city: "" });
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const toggleFavorite = (id: string) => setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetch("/api/profiles?limit=50"), fetch("/api/favorites")])
+      .then(async ([profilesResponse, favoritesResponse]) => {
+        const [profilesData, favoritesData] = await Promise.all([profilesResponse.json(), favoritesResponse.json()]);
+        if (!profilesResponse.ok || !favoritesResponse.ok) throw new Error(profilesData.error || favoritesData.error);
+        if (!active) return;
+        setProfiles(profilesData.profiles);
+        setFavorites(favoritesData.favorites.map((profile: Profile) => profile.id));
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Découverte indisponible.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const filtered = PROFILES.filter(
+  const toggleFavorite = async (id: string) => {
+    const isFavorite = favorites.includes(id);
+    const response = await fetch("/api/favorites", {
+      method: isFavorite ? "DELETE" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId: id }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Impossible de mettre à jour le favori.");
+      return;
+    }
+    setFavorites((current) => isFavorite ? current.filter((favorite) => favorite !== id) : [...current, id]);
+  };
+
+  const sendRequest = async (recipientId: string) => {
+    const response = await fetch("/api/connection-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recipientId }),
+    });
+    const result = await response.json();
+    if (!response.ok) setError(result.error || "Impossible d'envoyer la demande.");
+  };
+
+  const filtered = profiles.filter(
     (p) =>
       (search === "" || p.firstName.toLowerCase().includes(search.toLowerCase()) || p.city.toLowerCase().includes(search.toLowerCase())) &&
       p.age >= filters.minAge &&
       p.age <= filters.maxAge &&
       (filters.city === "" || p.city.toLowerCase().includes(filters.city.toLowerCase()))
   );
-
-  const handleSearch = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 600);
-  };
 
   return (
     <div className="min-h-screen bg-[var(--color-cream)] pt-16">
@@ -57,19 +98,12 @@ export default function Discover() {
           >
             <SlidersHorizontal size={16} /> Filtres
           </button>
-          <button
-            onClick={handleSearch}
-            className="px-6 py-3 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-            style={{ background: "linear-gradient(135deg, var(--color-midnight) 0%, var(--color-midnight-light) 100%)" }}
-          >
-            Rechercher
-          </button>
         </div>
 
         {/* Filter panel */}
         {showFilters && (
           <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-[var(--color-beige-dark)]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Âge minimum : {filters.minAge}</label>
                 <input type="range" min="18" max="60" value={filters.minAge} onChange={(e) => setFilters((p) => ({ ...p, minAge: +e.target.value }))} className="w-full accent-[var(--color-lavender)]" />
@@ -88,14 +122,10 @@ export default function Discover() {
                   placeholder="Paris, Lyon..."
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Distance max : {filters.distance} km</label>
-                <input type="range" min="10" max="500" value={filters.distance} onChange={(e) => setFilters((p) => ({ ...p, distance: +e.target.value }))} className="w-full accent-[var(--color-lavender)]" />
-              </div>
             </div>
             <div className="flex justify-end mt-4">
               <button
-                onClick={() => setFilters({ minAge: 18, maxAge: 50, city: "", distance: 100 })}
+                onClick={() => setFilters({ minAge: 18, maxAge: 70, city: "" })}
                 className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X size={14} /> Réinitialiser les filtres
@@ -109,14 +139,10 @@ export default function Discover() {
           <p className="text-sm text-slate-500">
             {filtered.length} profil{filtered.length > 1 ? "s" : ""} trouvé{filtered.length > 1 ? "s" : ""}
           </p>
-          <select className="text-sm border border-[var(--color-beige-dark)] rounded-lg px-3 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-lavender)]">
-            <option>Trier : Dernière activité</option>
-            <option>Trier : Profils vérifiés</option>
-            <option>Trier : Proximité</option>
-          </select>
         </div>
 
         {/* Grid */}
+        {error && <p role="alert" className="mb-5 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {[...Array(8)].map((_, i) => (
@@ -132,7 +158,7 @@ export default function Discover() {
         ) : filtered.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {filtered.map((p) => (
-              <ProfileCard key={p.id} profile={p} onFavorite={toggleFavorite} isFavorite={favorites.includes(p.id)} />
+              <ProfileCard key={p.id} profile={p} onFavorite={toggleFavorite} onRequest={sendRequest} isFavorite={favorites.includes(p.id)} />
             ))}
           </div>
         ) : (
@@ -143,7 +169,7 @@ export default function Discover() {
             <button
               onClick={() => {
                 setSearch("");
-                setFilters({ minAge: 18, maxAge: 50, city: "", distance: 100 });
+                setFilters({ minAge: 18, maxAge: 70, city: "" });
               }}
               className="mt-6 px-6 py-2.5 rounded-xl text-sm font-medium border border-[var(--color-beige-dark)] hover:bg-[var(--color-beige)] transition-colors"
             >
