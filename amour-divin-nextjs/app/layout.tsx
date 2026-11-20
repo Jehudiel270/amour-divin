@@ -2,9 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
 import Navbar from "@/components/shared/navbar";
-import { getChurchName } from "@/lib/site";
-
-const churchName = getChurchName();
+const churchName = "Église Amour Divin";
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://amour-divin.vercel.app").replace(/\/$/, "");
 
 export const metadata: Metadata = {
