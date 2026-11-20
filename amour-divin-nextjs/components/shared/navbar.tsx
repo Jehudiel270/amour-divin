@@ -12,12 +12,17 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
     const stored = window.localStorage.getItem("ad-theme");
-    if (stored === "light" || stored === "dark") return stored;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
+    const resolved = stored === "dark"
+      ? "dark"
+      : stored === "light"
+        ? "light"
+        : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    queueMicrotask(() => setTheme(resolved));
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = authClient.useSession();
