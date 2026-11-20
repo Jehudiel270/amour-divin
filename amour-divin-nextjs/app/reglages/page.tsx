@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Shield, Lock, Bell, CreditCard, HelpCircle, LogOut, Check } from "lucide-react";
+import { User, Shield, Lock, Bell, CreditCard, HelpCircle, LogOut, Check, Palette, Sun, Moon, Monitor } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
 import { translateAuthError } from "@/lib/auth/messages";
@@ -13,6 +13,7 @@ const SECTIONS = [
   { id: "security", label: "Sécurité", icon: <Shield size={18} /> },
   { id: "privacy", label: "Confidentialité", icon: <Lock size={18} /> },
   { id: "notifications", label: "Notifications", icon: <Bell size={18} /> },
+  { id: "appearance", label: "Apparence", icon: <Palette size={18} /> },
   { id: "subscription", label: "Abonnement", icon: <CreditCard size={18} /> },
   { id: "help", label: "Aide", icon: <HelpCircle size={18} /> },
 ];
@@ -44,6 +45,24 @@ export default function Settings() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
+    if (typeof window === "undefined") return "system";
+    const stored = window.localStorage.getItem("ad-theme");
+    return stored === "light" || stored === "dark" ? stored : "system";
+  });
+
+  useEffect(() => {
+    const resolved = theme === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : theme;
+    document.documentElement.dataset.theme = resolved;
+  }, [theme]);
+
+  const changeTheme = (nextTheme: "light" | "dark" | "system") => {
+    setTheme(nextTheme);
+    if (nextTheme === "system") window.localStorage.removeItem("ad-theme");
+    else window.localStorage.setItem("ad-theme", nextTheme);
+  };
 
   useEffect(() => {
     let active = true;
@@ -317,6 +336,36 @@ export default function Settings() {
                 </div>
               )}
 
+              {active === "appearance" && (
+                <div>
+                  <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-2">Apparence</h2>
+                  <p className="mb-6 text-sm text-slate-500">Choisissez le thème utilisé sur cette application.</p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {([
+                      ["light", "Clair", <Sun key="sun" size={20} />],
+                      ["dark", "Sombre", <Moon key="moon" size={20} />],
+                      ["system", "Automatique", <Monitor key="monitor" size={20} />],
+                    ] as const).map(([value, label, icon]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={theme === value}
+                        onClick={() => changeTheme(value)}
+                        className={`flex min-h-24 flex-col items-start justify-between rounded-2xl border p-4 text-left transition-all ${
+                          theme === value
+                            ? "border-[var(--color-lavender)] bg-[var(--color-lavender-light)] text-[var(--color-midnight)] ring-2 ring-[var(--color-lavender-light)]"
+                            : "border-[var(--color-beige-dark)] bg-white text-slate-600 hover:border-[var(--color-lavender)]"
+                        }`}
+                      >
+                        {icon}
+                        <span className="mt-4 text-sm font-semibold">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {active === "subscription" && (
                 <div>
                   <h2 className="font-display text-xl font-bold text-[var(--color-midnight)] mb-6">Abonnement</h2>
@@ -368,7 +417,7 @@ export default function Settings() {
                 </div>
               )}
 
-              {active !== "help" && active !== "subscription" && (
+              {active !== "help" && active !== "subscription" && active !== "appearance" && (
                 <div className="mt-8 pt-6 border-t border-[var(--color-beige-dark)] flex items-center gap-3">
                   <button
                     type="button"

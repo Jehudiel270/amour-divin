@@ -75,6 +75,55 @@ html {
   scroll-behavior: smooth;
 }
 
+html[data-theme="dark"] {
+  --color-midnight: #dfe7f7;
+  --color-midnight-light: #b8c6e7;
+  --color-lavender: #b5a7dd;
+  --color-lavender-soft: #6f6496;
+  --color-lavender-light: #332d48;
+  --color-beige: #252d3d;
+  --color-beige-dark: #3a4354;
+  --color-cream: #101827;
+  --color-slate: #aab4c5;
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body {
+  background-color: var(--color-cream);
+  color: #dfe7f7;
+  background-image:
+    radial-gradient(circle at 8% 12%, rgba(201, 160, 78, 0.04), transparent 22rem),
+    radial-gradient(circle at 92% 28%, rgba(155, 142, 196, 0.08), transparent 24rem);
+}
+
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] nav,
+html[data-theme="dark"] .ad-card,
+html[data-theme="dark"] .ad-panel {
+  background-color: #172136 !important;
+}
+
+html[data-theme="dark"] .bg-\[var\(--color-cream\)\],
+html[data-theme="dark"] .bg-\[var\(--color-beige\)\] {
+  background-color: var(--color-cream) !important;
+}
+
+html[data-theme="dark"] .text-slate-400,
+html[data-theme="dark"] .text-slate-500,
+html[data-theme="dark"] .text-slate-600,
+html[data-theme="dark"] .text-slate-700 {
+  color: #b4bfd1 !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  accent-color: var(--color-midnight);
+  cursor: pointer;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--color-cream);

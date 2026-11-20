@@ -84,7 +84,7 @@ export default function Safety() {
               {[
                 { title: "Connexions HTTPS", desc: "Le domaine de production devra utiliser HTTPS avant toute ouverture publique." },
                 { title: "Données minimales", desc: "Les informations recueillies et leurs usages doivent être détaillés dans la politique finale." },
-                { title: "Visibilité du profil", desc: "Le réglage de visibilité est en cours de connexion aux données persistantes." },
+                { title: "Visibilité du profil", desc: "Vous contrôlez la visibilité de votre profil depuis vos réglages." },
                 { title: "Demandes de données", desc: "Contactez l'équipe pour demander une intervention sur votre compte pendant la bêta." },
               ].map((item) => (
                 <div key={item.title} className="p-5 rounded-2xl" style={{ background: "var(--color-beige)" }}>

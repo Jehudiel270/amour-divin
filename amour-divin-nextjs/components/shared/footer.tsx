@@ -10,7 +10,7 @@ export default function Footer() {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10">
                 <span className="text-white font-display font-bold text-lg">AD</span>
               </div>
-              <span className="font-display text-xl font-semibold">Amour Divin</span>
+              <span className="font-display text-xl font-semibold">Église Amour Divin</span>
             </div>
             <p className="text-slate-300 text-sm leading-relaxed max-w-xs">
               Une plateforme de rencontres sérieuses pour jeunes adultes chrétiens, fondée sur la foi, le respect et l&apos;authenticité.
@@ -57,7 +57,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-400">© 2025 Amour Divin. Tous droits réservés.</p>
+          <p className="text-xs text-slate-400">© 2026 Église Amour Divin. Tous droits réservés.</p>
           <p className="text-xs text-slate-500">Réservé aux adultes de 18 ans et plus · Avec amour ✝</p>
         </div>
       </div>

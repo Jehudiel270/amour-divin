@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Bell, Heart, MessageCircle, Settings, LogOut, User } from "lucide-react";
+import { Menu, X, Bell, Heart, MessageCircle, Settings, LogOut, User, ShieldCheck } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
 import { getChurchName } from "@/lib/site";
@@ -11,13 +11,31 @@ import type { ReactNode } from "react"
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const isLoggedIn = Boolean(session?.user);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+    let active = true;
+    void fetch("/api/admin/me")
+      .then((response) => response.ok ? response.json() : null)
+      .then((context) => {
+        if (active) setIsAdmin(Boolean(context?.role));
+      })
+      .catch(() => {
+        if (active) setIsAdmin(false);
+      });
+    return () => { active = false; };
+  }, [isLoggedIn]);
+
   const logout = async () => {
     await authClient.signOut();
+    setIsAdmin(false);
     setUserMenuOpen(false);
     setMenuOpen(false);
     router.push("/");
@@ -72,6 +90,15 @@ export default function Navbar() {
                 {l.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 rounded-xl border border-[var(--color-lavender)] px-3 py-2 text-sm font-semibold text-[var(--color-midnight)] hover:bg-[var(--color-lavender-light)]"
+              >
+                <ShieldCheck size={16} />
+                Administration
+              </Link>
+            )}
           </div>
 
           {/* Right side */}
@@ -108,6 +135,15 @@ export default function Navbar() {
                       >
                         <Settings size={16} className="text-slate-400" /> Réglages
                       </Link>
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-[var(--color-beige)] transition-colors"
+                        >
+                          <ShieldCheck size={16} className="text-slate-400" /> Administration
+                        </Link>
+                      )}
                       <hr className="my-1 border-[var(--color-beige-dark)]" />
                       <button
                         onClick={logout}
@@ -174,6 +210,11 @@ export default function Navbar() {
               <Link href="/reglages" onClick={() => setMenuOpen(false)} className="py-2 text-sm text-slate-600">
                 Réglages
               </Link>
+              {isAdmin && (
+                <Link href="/admin" onClick={() => setMenuOpen(false)} className="py-2 text-sm text-slate-600">
+                  Administration
+                </Link>
+              )}
               <button
                 onClick={logout}
                 className="py-2 text-sm text-red-500 text-left"

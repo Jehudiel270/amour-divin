@@ -67,7 +67,7 @@ export default function About() {
                 AD est conçu pour offrir un espace de rencontres sincères et respectueuses, où la foi peut être partagée ouvertement.
               </p>
               <p className="text-slate-600 leading-relaxed mb-8">
-                La plateforme est en cours de construction. Les fonctions de modération, de confidentialité et de prise en charge seront décrites selon leur fonctionnement réel avant l&apos;ouverture publique.
+                Les fonctions de modération, de confidentialité et de signalement sont intégrées à la plateforme. Les modalités détaillées sont disponibles dans nos documents légaux et nos pages de sécurité.
               </p>
               <Link
                 href="/inscription"
