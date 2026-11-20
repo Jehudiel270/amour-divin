@@ -150,6 +150,19 @@ html[data-theme="dark"] [class*="border-[var(--color-beige-dark)]"] {
   border-color: #254b74 !important;
 }
 
+html[data-theme="dark"] .auth-card {
+  border-color: #254b74;
+  background: #0d1e35 !important;
+  box-shadow: 0 30px 90px rgba(2, 10, 24, 0.58);
+}
+
+html[data-theme="dark"] .auth-card .text-slate-400,
+html[data-theme="dark"] .auth-card .text-slate-500,
+html[data-theme="dark"] .auth-card .text-slate-600,
+html[data-theme="dark"] .auth-card .text-slate-700 {
+  color: #d4e4fa !important;
+}
+
 html[data-theme="dark"] .bg-\[var\(--color-cream\)\],
 html[data-theme="dark"] .bg-\[var\(--color-beige\)\] {
   background-color: var(--color-cream) !important;
