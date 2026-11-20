@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, Bell, Heart, MessageCircle, Settings, LogOut, User } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
+import { getChurchName } from "@/lib/site";
 import type { ReactNode } from "react"
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function Navbar() {
             >
               <span className="text-white font-display font-bold text-base">AD</span>
             </div>
-            <span className="font-display font-semibold text-lg text-[var(--color-midnight)] hidden sm:block">{process.env.NEXT_PUBLIC_CHURCH_NAME || "Amour Divin"}</span>
+            <span className="font-display font-semibold text-lg text-[var(--color-midnight)] hidden sm:block">{getChurchName()}</span>
           </Link>
 
           {/* Desktop Nav */}
