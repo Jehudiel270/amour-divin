@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Bell, Heart, MessageCircle, Settings, LogOut, User, ShieldCheck } from "lucide-react";
+import { Menu, X, Bell, Heart, MessageCircle, Settings, LogOut, User, ShieldCheck, Sun, Moon } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
 import { getChurchName } from "@/lib/site";
@@ -12,6 +12,12 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const stored = window.localStorage.getItem("ad-theme");
+    if (stored === "light" || stored === "dark") return stored;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = authClient.useSession();
@@ -40,6 +46,13 @@ export default function Navbar() {
     setMenuOpen(false);
     router.push("/");
     router.refresh();
+  };
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    window.localStorage.setItem("ad-theme", nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
   };
 
   const isAuthPage = ["/connexion", "/inscription", "/mot-de-passe-oublie", "/reinitialiser-mot-de-passe"].includes(pathname);
@@ -103,6 +116,15 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Activer le thème clair" : "Activer le thème sombre"}
+              title={theme === "dark" ? "Thème clair" : "Thème sombre"}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-beige-dark)] bg-white text-[var(--color-midnight)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--color-lavender)] hover:text-[var(--color-lavender)]"
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             {isLoggedIn ? (
               <>
                 <Link
@@ -179,6 +201,14 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-[var(--color-beige-dark)] px-4 py-4 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex items-center gap-2 py-2 text-sm font-medium text-slate-700"
+          >
+            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            {theme === "dark" ? "Passer au thème clair" : "Passer au thème sombre"}
+          </button>
           {(isLoggedIn ? privateLinks : publicLinks).map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)} className="py-2 text-sm font-medium text-slate-700 hover:text-[var(--color-midnight)] transition-colors">
               {l.label}
